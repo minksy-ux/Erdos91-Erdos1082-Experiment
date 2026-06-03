@@ -44,6 +44,7 @@ python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --dim 3 --
 python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --opt-method anneal
 python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --opt-method hillclimb
 python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --opt-method direct
+python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --opt-method direct --distance-tol 1e-5
 ```
 
 6. Save and visualize top candidates:
