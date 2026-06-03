@@ -8,13 +8,12 @@ import json
 import math
 import os
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.spatial.distance import pdist, squareform
+from scipy.spatial.distance import pdist
 
-Point = Tuple[float, float]
 Array2D = np.ndarray
 
 
@@ -249,7 +248,7 @@ def direct_distinct_optimize(
     for step in range(steps):
         candidate = propose_perturbation(current, scale=scale, rng=rng)
         candidate_obj = distinct_distance_objective(candidate, tol=tol)
-        if candidate_obj <= current_obj or (candidate_obj[0] == current_obj[0] and candidate_obj[1] < current_obj[1]):
+        if candidate_obj < current_obj or (candidate_obj[0] == current_obj[0] and candidate_obj[1] < current_obj[1]):
             current = candidate
             current_obj = candidate_obj
             if candidate_obj < best_obj:
@@ -268,6 +267,7 @@ def optimize_candidate(
     scale: float = 0.04,
     temp_start: float = 0.08,
     temp_end: float = 0.001,
+    distance_tol: float = 1e-6,
     seed: Optional[int] = None,
 ) -> Tuple[Array2D, float]:
     if method == "hillclimb":
@@ -282,7 +282,7 @@ def optimize_candidate(
             seed=seed,
         )
     if method == "direct":
-        return direct_distinct_optimize(init_points, steps=steps, scale=scale, tol=1e-6, seed=seed)
+        return direct_distinct_optimize(init_points, steps=steps, scale=scale, tol=distance_tol, seed=seed)
     raise ValueError(f"Unknown optimization method: {method}")
 
 
@@ -307,6 +307,7 @@ def generate_candidates(
     seed_type: str = "regular",
     dim: int = 2,
     opt_method: str = "anneal",
+    distance_tol: float = 1e-6,
 ) -> List[Candidate]:
     rng = np.random.default_rng(seed)
     candidates: List[Candidate] = []
@@ -319,10 +320,11 @@ def generate_candidates(
             scale=0.04,
             temp_start=0.08,
             temp_end=0.001,
+            distance_tol=distance_tol,
             seed=int(rng.integers(1_000_000)),
         )
-        distinct = count_distinct_distances(points)
-        max_dist = max_distinct_from_point(points)
+        distinct = count_distinct_distances(points, tol=distance_tol)
+        max_dist = max_distinct_from_point(points, tol=distance_tol)
         collinear = no_three_collinear(points)
         candidates.append(Candidate(points, distinct, max_dist, collinear, energy))
     candidates.sort(key=lambda c: (c.distinct_distances, c.energy))
@@ -499,6 +501,7 @@ def main() -> None:
     parser.add_argument("--opt-method", type=str, default="anneal", choices=["anneal", "hillclimb", "direct"], help="optimization method for configuration search")
     parser.add_argument("--cluster-by", type=str, default="signature", choices=["signature", "procrustes", "shape"], help="group candidates by exact distance signature, pairwise Procrustes similarity, or shape ordering")
     parser.add_argument("--cluster-tol", type=float, default=1e-3, help="clustering tolerance for signature or shape similarity")
+    parser.add_argument("--distance-tol", type=float, default=1e-6, help="distance tolerance for counting distinct distances and direct optimization")
     parser.add_argument("--save-json", type=str, default="", help="optional path to save top candidate coordinates as JSON")
     parser.add_argument("--plot-top", type=int, default=0, help="number of top candidates to plot to PNG files")
     args = parser.parse_args()
@@ -512,6 +515,7 @@ def main() -> None:
         seed_type=args.seed_type,
         dim=args.dim,
         opt_method=args.opt_method,
+        distance_tol=args.distance_tol,
     )
     print("\nTop candidate summary:")
     for i, cand in enumerate(candidates[:3], start=1):
