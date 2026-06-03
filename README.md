@@ -1,194 +1,160 @@
-# Erdős Distinct-Distance Experiment
+# Erdos Rigidity Explorer
 
-![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue) ![License: MIT](https://img.shields.io/badge/license-MIT-green)
+A computational exploration framework for Erdos distinct-distance problems #91 and #1082.
 
-## Overview
+This project currently combines geometric seeding, stochastic local optimization, distance-signature clustering, and rigidity-oriented graph utilities in a lightweight research prototype.
 
-This repository is a **computational exploration framework** for classical discrete-geometry problems proposed by Paul Erdős, with a focus on understanding the structure of point configurations that minimize distinct distances.
+## Why this project
 
-### The Problems
+The goal is to generate strong computational evidence for difficult open questions in discrete geometry:
 
-- **Erdős #1082**: Do n points in the plane with no three collinear always determine at least ⌊n/2⌋ distinct distances? This is a fundamental open question in discrete geometry.
-- **Erdős #91**: Are there at least two fundamentally different (non-similar) configurations that minimize the distinct-distance count for large n? This probes the uniqueness of extremal structures.
-- **Higher dimensions**: Extensions to 3D and beyond, including rigidity-based filtering.
+- Erdos #1082: whether n planar points with no three collinear must determine at least floor(n/2) distinct distances.
+- Erdos #91: whether large n admits at least two non-similar minimizers for the distinct-distance count.
 
-### Why This Matters
+## Current capabilities
 
-These problems connect discrete geometry to combinatorics, graph rigidity theory, and optimization. Understanding extremal point configurations has applications in sensor networks, crystallography, and computational geometry.
+- Multi-seed candidate generation in 2D and 3D.
+- Three optimization modes: hill climb, simulated annealing, and direct distinct-distance objective.
+- Distinct-distance counting with tolerance control.
+- No-three-collinear checks for 2D and 3D.
+- Candidate clustering by exact distance signature, Procrustes distance, or shape similarity.
+- JSON export and plotting for top candidates.
 
-## Installation
+## Project layout
 
-### Prerequisites
+- src/erdos_distance_explorer.py: experiment runner and optimization pipeline.
+- src/graph_rigidity.py: graph-level rigidity helpers and summary tools.
+- src/verification/exact_verifier.py: exact symbolic certification for 2D candidates.
+- src/utils/database.py: SQLite experiment tracking.
+- run_experiments.py: structured multi-seed search runner with certification output.
+- plots/: generated figures.
+- out/: generated candidate exports.
+- results/: SQLite experiment database.
+- certified_configs/: exact certification JSON outputs.
 
-- Python 3.8 or later
-- pip package manager
+## Quick start
 
-### Setup
-
-1. Clone the repository:
+Install in editable mode:
 
 ```bash
-git clone https://github.com/minksy-ux/Erdos91-Erdos1082-Experiment.git
-cd Erdos91-Erdos1082-Experiment
+pip install -e .
 ```
 
-2. Install dependencies:
+Install with development tools:
 
 ```bash
-pip install -r requirements.txt
+pip install -e .[dev]
 ```
 
-**Note**: For visualization features, ensure you have `matplotlib` installed (included in requirements).
+Install optional dashboard and parallel extras:
 
-## Repository Structure
-
-```
-src/
-├── erdos_distance_explorer.py   # Main candidate generator and local search optimizer
-├── graph_rigidity.py             # Rigidity analysis and graph-structure utilities
-└── ...
-
-requirements.txt                  # Python dependencies
-README.md                        # This file
+```bash
+pip install -e .[dashboard,parallel]
 ```
 
-### Key Modules
+Run a small experiment:
 
-- **`erdos_distance_explorer.py`**: The core engine for generating and optimizing point configurations. It:
-  - Generates candidate point sets using multiple seed strategies (random, lattice, etc.)
-  - Applies local search optimizations (hill climbing, simulated annealing, direct search)
-  - Enforces soft no-three-collinear constraints
-  - Counts distinct distances and groups candidates by similarity
-  - Outputs JSON results and optional visualizations
+```bash
+erdos-explore --n 10 --trials 16 --steps 2000
+```
 
-- **`graph_rigidity.py`**: Utilities for rigidity analysis and graph filtering. This module provides a foundation for:
-  - Computing rigidity matrices and analyzing degrees of freedom
-  - Identifying structural properties of distance graphs
-  - Future screening of candidates by rigidity constraints
-
-## Quick Start
-
-### Example 1: Small Experiment (2D, n=10)
+Equivalent direct module invocation:
 
 ```bash
 python src/erdos_distance_explorer.py --n 10 --trials 16 --steps 2000
 ```
 
-This runs 16 independent trials optimizing 10 points over 2000 optimization steps each. Output includes:
-- Best distinct-distance count found
-- Number of trial runs and convergence statistics
-- Top-ranked configurations
-
-### Example 2: Larger Experiment with Custom Clustering
+Try different methods and settings:
 
 ```bash
-python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --seed-type lattice --cluster-by procrustes --cluster-tol 0.01
-```
-
-**Parameters explained:**
-- `--n 12`: Optimize 12 points
-- `--trials 20`: Run 20 independent trials
-- `--steps 3000`: 3000 optimization steps per trial
-- `--seed-type lattice`: Initialize from a lattice-based seed (vs. random)
-- `--cluster-by procrustes`: Group similar configurations using Procrustes alignment
-- `--cluster-tol 0.01`: Tolerance for grouping (lower = stricter)
-
-### Example 3: Higher Dimensions
-
-```bash
+python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --opt-method anneal
+python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --opt-method hillclimb
+python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --opt-method direct --distance-tol 1e-5
 python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --dim 3 --seed-type uniform --cluster-by shape
 ```
 
-- `--dim 3`: Optimize in 3D space (default is 2D)
-- `--cluster-by shape`: Use shape-based similarity (rotation/scale invariant)
-
-### Example 4: Compare Optimization Methods
+Run the structured search pipeline:
 
 ```bash
-# Simulated annealing
-python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --opt-method anneal
-
-# Hill climbing
-python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --opt-method hillclimb
-
-# Direct search (SciPy minimize)
-python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --opt-method direct
-
-# Direct search with stricter distance tolerance
-python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --opt-method direct --distance-tol 1e-5
+python run_experiments.py --n 12 --trials 200 --steps 1500 --opt-method anneal --certify-top 5
 ```
 
-These experiments let you benchmark which optimization strategy finds better minima for your parameter choices.
+Run distributed mode with Ray:
 
-### Example 5: Save Results and Visualizations
+```bash
+python run_experiments.py --n 12 --trials 500 --steps 1200 --mode ray --ray-cpus 4 --certify-top 5
+```
+
+Run strict exact-ranking mode (certify all trials, then rank by certified counts):
+
+```bash
+python run_experiments.py --n 12 --trials 120 --steps 400 --mode ray --ray-cpus 2 --certify-top 5 --exact-ranking-all
+```
+
+Run benchmark mode (repeated runs with confidence summary):
+
+```bash
+python run_experiments.py --n-list 8,10,12 --trials 60 --steps 250 --benchmark-runs 4 --certify-top 5 --exact-ranking-all
+```
+
+Launch interactive dashboard:
+
+```bash
+streamlit run dashboard.py
+```
+
+Save top candidates and plots:
 
 ```bash
 python src/erdos_distance_explorer.py --n 12 --trials 20 --steps 3000 --save-json out/top_candidates.json --plot-top 3
 ```
 
-- `--save-json`: Save top candidates to a JSON file for further analysis
-- `--plot-top 3`: Generate scatter plots of the top 3 configurations
+## Development workflow
 
-Output is saved to `out/top_candidates.json` and optional PNG visualizations in the output directory.
+Run formatting, linting, and tests:
 
-## Framework Goals
+```bash
+black src
+ruff check src
+pytest
+```
 
-- **Generate and optimize** point sets that may minimize distinct distances
-- **Enforce constraints** via soft no-three-collinear penalties
-- **Compare configurations** by distinct-distance signatures and similarity measures
-- **Provide a foundation** for rigidity-screened graph search pipelines
-- **Explore trade-offs** between different optimization methods and seed families
+## Exact certification and experiment tracking
 
-## Results & Findings
+The structured runner writes every trial to SQLite and certifies top candidates exactly:
 
-*(To be updated as experiments conclude)*
+- Database: results/erdos_experiments.db
+- Certificates: certified_configs/n{n}_trial{trial}_rank{k}.json
 
-- Current best distinct-distance count for n=12 in 2D: [To be filled]
-- Largest n tested: [To be filled]
-- Observations on minimizer uniqueness: [To be filled]
+Tracked exact fields include:
 
-## Development Roadmap
+- exact distinct squared-distance count,
+- exact min/max per-point distinct-distance counts,
+- exact validity (no three collinear),
+- approximate-vs-exact gap (visible in dashboard diagnostics).
 
-### In Progress
-- [ ] Gradient-based optimization methods (scipy.optimize + autograd)
-- [ ] Exact similarity testing via alignment algorithms
+Certification uses SymPy rationals plus mpmath precision to avoid floating-point false positives in distinct-distance counts and collinearity checks.
+The runner reports both approximate (tolerance-based) and exact certified counts for top candidates; treat certified counts as authoritative when they differ.
 
-### Planned
-- [ ] Graph-level pipeline for rigidity-based candidate screening
-- [ ] Scaling to higher dimensions (d ≥ 4) and larger n (≥ 20)
-- [ ] Integration with SAT/CSP solvers for constraint hardening
-- [ ] Comprehensive result database and statistical analysis
+The runner also stores:
 
-### Future Extensions
-- Parallel trial execution for speedup
-- Web interface for interactive exploration
-- Integration with mathematical libraries (e.g., CGAL, Qhull via Python bindings)
+- benchmark summaries (mean/std/95% CI for best exact counts),
+- #91 family-evidence rows with estimated number of non-similar minimizer families among certified best candidates.
 
-## References & Background
+## Research roadmap
 
-- **Erdős distance problems**: Paul Erdős, "On sets of distances of n points," *American Mathematical Monthly*, 53(4), 1946.
-- **Graph rigidity**: Rigidity theory in computational geometry (Laman conditions, rigidity matrices).
-- **Distinct-distance bounds**: Frank de Bruijn & Paul Erdős work on graph realizations.
+Planned extensions include:
 
-For a deeper dive, consult the discrete geometry literature on distance graphs and extremal configurations.
+- Rigidity-guided structured generation (Laman/Henneberg and pebble-game style filters).
+- Exact symbolic certification for top candidates.
+- Persistent-homology analysis for non-similarity evidence.
+- Parallel large-scale search and reproducible benchmark suites.
 
 ## Contributing
 
-Contributions are welcome! To contribute:
+Contributions are welcome in these directions:
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -am 'Add new feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
-## Questions & Support
-
-For questions or issues:
-- Open a [GitHub Issue](https://github.com/minksy-ux/Erdos91-Erdos1082-Experiment/issues)
-- Check existing discussions for answers
-- Review code comments in the main modules for implementation details
+- Better seed families and optimization objectives.
+- Faster geometric predicates and clustering.
+- Reproducible experiment scripts and benchmark reports.
+- Rigidity and certification modules with tests.

@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "erdos-rigidity-explorer"
+version = "0.1.0"
+description = "Computational exploration toolkit for Erdos distinct-distance problems #91 and #1082"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "Erdos Rigidity Explorer Contributors" }
+]
+dependencies = [
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "matplotlib>=3.9",
+  "networkx>=3.1",
+  "sympy>=1.13",
+  "mpmath>=1.3"
+]
+
+[project.optional-dependencies]
+dev = ["black", "ruff", "pytest"]
+parallel = ["ray>=2.30"]
+dashboard = ["streamlit>=1.38", "pandas>=2.2", "plotly>=5.24"]
+
+[project.scripts]
+erdos-explore = "erdos_distance_explorer:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+py-modules = ["erdos_distance_explorer", "graph_rigidity"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["utils", "verification", "generation"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

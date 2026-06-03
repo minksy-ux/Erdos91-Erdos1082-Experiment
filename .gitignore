@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+plots/
+out/
+results/
+certified_configs/
+*.db
+ray_results/

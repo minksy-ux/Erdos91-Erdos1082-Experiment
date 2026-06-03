@@ -34,6 +34,10 @@ def regular_polygon(n: int, radius: float = 1.0, dim: int = 2) -> Array2D:
 
 
 def fibonacci_sphere(n: int, radius: float = 1.0, seed: Optional[int] = None) -> Array2D:
+    if n <= 0:
+        raise ValueError("fibonacci_sphere requires n >= 1")
+    if n == 1:
+        return np.array([[0.0, radius, 0.0]], dtype=float)
     rng = np.random.default_rng(seed)
     points = np.zeros((n, 3), dtype=float)
     phi = np.pi * (3.0 - np.sqrt(5.0))
@@ -126,6 +130,14 @@ def no_three_collinear(points: Array2D, tol: float = 1e-8) -> bool:
     return True
 
 
+def triangle_area_measure(v1: Array2D, v2: Array2D, dim: int) -> float:
+    if dim == 2:
+        return float(abs(v1[0] * v2[1] - v1[1] * v2[0]))
+    if dim == 3:
+        return float(np.linalg.norm(np.cross(v1, v2)))
+    raise ValueError("Only dim=2 or dim=3 are supported")
+
+
 def distance_repetition_energy(points: Array2D, num_bins: int = 30) -> float:
     dists = pdist(points)
     if dists.size == 0:
@@ -138,6 +150,7 @@ def distance_repetition_energy(points: Array2D, num_bins: int = 30) -> float:
 
 
 def collinearity_penalty(points: Array2D, beta: float = 12.0) -> float:
+    _, dim = points.shape
     n = len(points)
     penalty = 0.0
     for i in range(n):
@@ -145,7 +158,7 @@ def collinearity_penalty(points: Array2D, beta: float = 12.0) -> float:
             for k in range(j + 1, n):
                 v1 = points[j] - points[i]
                 v2 = points[k] - points[i]
-                area2 = abs(v1[0] * v2[1] - v1[1] * v2[0])
+                area2 = triangle_area_measure(v1, v2, dim)
                 penalty += math.exp(-beta * area2)
     return penalty
 
@@ -164,7 +177,9 @@ def energy_function(
     return lambda_repeat * rep + lambda_col * col + lambda_disp * disp
 
 
-def propose_perturbation(points: Array2D, scale: float = 0.03, rng: np.random.Generator = np.random.default_rng()) -> Array2D:
+def propose_perturbation(points: Array2D, scale: float = 0.03, rng: Optional[np.random.Generator] = None) -> Array2D:
+    if rng is None:
+        rng = np.random.default_rng()
     perturb = rng.normal(scale=scale, size=points.shape)
     return points + perturb
 
@@ -505,6 +520,19 @@ def main() -> None:
     parser.add_argument("--save-json", type=str, default="", help="optional path to save top candidate coordinates as JSON")
     parser.add_argument("--plot-top", type=int, default=0, help="number of top candidates to plot to PNG files")
     args = parser.parse_args()
+
+    if args.n < 1:
+        parser.error("--n must be >= 1")
+    if args.trials < 1:
+        parser.error("--trials must be >= 1")
+    if args.steps < 1:
+        parser.error("--steps must be >= 1")
+    if args.cluster_tol <= 0.0:
+        parser.error("--cluster-tol must be > 0")
+    if args.distance_tol <= 0.0:
+        parser.error("--distance-tol must be > 0")
+    if args.plot_top < 0:
+        parser.error("--plot-top must be >= 0")
 
     print(f"Running {args.trials} candidate trials for n={args.n} dim={args.dim} using seed type '{args.seed_type}' and opt method '{args.opt_method}'...")
     candidates = generate_candidates(
