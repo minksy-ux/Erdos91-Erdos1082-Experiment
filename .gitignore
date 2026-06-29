@@ -11,6 +11,7 @@ src/*.egg-info/
 
 plots/
 out/
+reports/
 results/
 certified_configs/
 *.db
