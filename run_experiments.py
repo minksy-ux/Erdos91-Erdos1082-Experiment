@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 import math
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from statistics import mean, pstdev
 from typing import Any, List, Optional
 
@@ -14,10 +16,13 @@ import numpy as np
 
 from erdos_distance_explorer import (
     count_distinct_distances,
+    concentric_shell_seed,
+    double_circle_seed,
     max_distinct_from_point,
     no_three_collinear,
     optimize_candidate,
     random_uniform_points,
+    paired_polygon_seed,
     regular_polygon,
     shape_similarity_distance,
     signature_from_points,
@@ -42,6 +47,20 @@ class TrialResult:
     exact_min_distinct: Optional[int] = None
     exact_max_distinct: Optional[int] = None
     exact_valid: Optional[bool] = None
+
+
+@dataclass
+class ArchiveEntry:
+    n: int
+    exact_distinct_sq: int
+    exact_min_distinct_from_point: int
+    exact_max_distinct_from_point: int
+    exact_is_valid: bool
+    trial_id: int
+    seed_family: str
+    run_tag: str
+    energy: float
+    points: np.ndarray
 
 
 def triangular_lattice_seed(n: int, spacing: float = 0.4) -> np.ndarray:
@@ -95,7 +114,7 @@ def rigidity_seed(n: int, rng: np.random.Generator) -> Optional[np.ndarray]:
 
 
 def choose_seed(n: int, trial_idx: int, rng: np.random.Generator) -> tuple[np.ndarray, str]:
-    mode = trial_idx % 5
+    mode = trial_idx % 8
     if mode == 0:
         return regular_polygon(n), "regular_polygon"
     if mode == 1:
@@ -106,6 +125,12 @@ def choose_seed(n: int, trial_idx: int, rng: np.random.Generator) -> tuple[np.nd
         rig = rigidity_seed(n, rng)
         if rig is not None:
             return rig, "rigidity_laman"
+    if mode == 4:
+        return concentric_shell_seed(n, seed=int(rng.integers(1_000_000))), "concentric_shells"
+    if mode == 5:
+        return double_circle_seed(n, seed=int(rng.integers(1_000_000))), "double_circle"
+    if mode == 6:
+        return paired_polygon_seed(n, seed=int(rng.integers(1_000_000))), "paired_polygon"
     return random_uniform_points(n, dim=2, seed=int(rng.integers(1_000_000))), "uniform"
 
 
@@ -117,9 +142,15 @@ def run_single_trial(
     opt_method: str,
     steps: int,
     distance_tol: float,
+    init_points: Optional[np.ndarray] = None,
+    seed_family: Optional[str] = None,
 ) -> dict[str, Any]:
     rng = np.random.default_rng(trial_seed)
-    init_points, seed_family = choose_seed(n, trial, rng)
+    if init_points is None:
+        init_points, seed_family = choose_seed(n, trial, rng)
+    else:
+        if seed_family is None:
+            seed_family = "archive_replay"
     points, energy = optimize_candidate(
         init_points,
         method=opt_method,
@@ -145,6 +176,74 @@ def canonical_signature(points: np.ndarray, tol: float = 1e-5) -> str:
     sig = signature_from_points(points, tol=tol)
     preview = ",".join(f"{x:.6f}" for x in sig[:12])
     return f"len={len(sig)}:{preview}"
+
+
+def load_best_archive(archive_path: str, n: int, limit: int = 8) -> List[np.ndarray]:
+    path = Path(archive_path)
+    if not path.exists():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+
+    entries = [item for item in payload if item.get("n") == n and item.get("exact_is_valid")]
+    entries.sort(
+        key=lambda item: (
+            item.get("exact_distinct_sq", 10**9),
+            -item.get("exact_min_distinct_from_point", 0),
+            item.get("energy", 10**9),
+        )
+    )
+    return [np.array(item.get("points", []), dtype=float) for item in entries[:limit] if item.get("points")]
+
+
+def save_best_archive(
+    archive_path: str,
+    entries: List[ArchiveEntry],
+    existing_entries: Optional[List[dict[str, Any]]] = None,
+    max_entries: int = 50,
+) -> None:
+    path = Path(archive_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    combined: List[dict[str, Any]] = list(existing_entries or [])
+    for entry in entries:
+        combined.append(
+            {
+                "n": entry.n,
+                "exact_distinct_sq": entry.exact_distinct_sq,
+                "exact_min_distinct_from_point": entry.exact_min_distinct_from_point,
+                "exact_max_distinct_from_point": entry.exact_max_distinct_from_point,
+                "exact_is_valid": entry.exact_is_valid,
+                "trial_id": entry.trial_id,
+                "seed_family": entry.seed_family,
+                "run_tag": entry.run_tag,
+                "energy": entry.energy,
+                "points": entry.points.tolist(),
+                "signature": canonical_signature(entry.points),
+            }
+        )
+
+    seen: set[str] = set()
+    deduped: List[dict[str, Any]] = []
+    for item in sorted(
+        combined,
+        key=lambda item: (
+            item.get("n", 10**9),
+            item.get("exact_distinct_sq", 10**9),
+            -item.get("exact_min_distinct_from_point", 0),
+            item.get("energy", 10**9),
+        ),
+    ):
+        key = item.get("signature") or json.dumps(item.get("points", []), sort_keys=True)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+        if len(deduped) >= max_entries:
+            break
+
+    path.write_text(json.dumps(deduped, indent=2), encoding="utf-8")
 
 
 def family_count(candidates: List[TrialResult], tol: float) -> tuple[int, int, List[dict[str, Any]], List[str]]:
@@ -179,17 +278,25 @@ def execute_batch(
     verifier: ExactVerifier,
     seed_offset: int,
     ray_module: Any = None,
+    archive_points: Optional[List[np.ndarray]] = None,
+    archive_path: Optional[str] = None,
+    archive_size: int = 50,
+    archive_only: bool = False,
 ) -> tuple[List[TrialResult], Optional[int]]:
     rng = np.random.default_rng(args.seed + seed_offset)
     trial_seeds = [int(rng.integers(1_000_000)) for _ in range(args.trials)]
     outputs: List[dict[str, Any]] = []
+    archive_points = archive_points or []
 
     if args.mode == "ray":
         if ray_module is None:
             raise RuntimeError("Internal error: Ray mode selected but ray_module is not initialized")
 
         @ray_module.remote
-        def run_remote(trial: int, trial_seed: int) -> dict[str, Any]:
+        def run_remote(trial: int, trial_seed: int, init_points_payload: Optional[List[List[float]]] = None, seed_family: Optional[str] = None) -> dict[str, Any]:
+            init_points = None
+            if init_points_payload is not None:
+                init_points = np.array(init_points_payload, dtype=float)
             return run_single_trial(
                 n=n,
                 trial=trial,
@@ -197,21 +304,65 @@ def execute_batch(
                 opt_method=args.opt_method,
                 steps=args.steps,
                 distance_tol=args.distance_tol,
+                init_points=init_points,
+                seed_family=seed_family,
             )
 
-        futures = [run_remote.remote(trial, trial_seeds[trial]) for trial in range(args.trials)]
+        if archive_only and archive_points:
+            replay_pool = archive_points
+            futures = [
+                run_remote.remote(
+                    trial,
+                    trial_seeds[trial],
+                    replay_pool[trial % len(replay_pool)].tolist(),
+                    "archive_only",
+                )
+                for trial in range(args.trials)
+            ]
+        else:
+            futures = [run_remote.remote(trial, trial_seeds[trial]) for trial in range(args.trials)]
         outputs = ray_module.get(futures)
     else:
-        for trial in range(args.trials):
-            outputs.append(
-                run_single_trial(
-                    n=n,
-                    trial=trial,
-                    trial_seed=trial_seeds[trial],
-                    opt_method=args.opt_method,
-                    steps=args.steps,
-                    distance_tol=args.distance_tol,
+        if archive_only and archive_points:
+            for trial in range(args.trials):
+                replay_init = archive_points[trial % len(archive_points)]
+                outputs.append(
+                    run_single_trial(
+                        n=n,
+                        trial=trial,
+                        trial_seed=trial_seeds[trial],
+                        opt_method=args.opt_method,
+                        steps=args.steps,
+                        distance_tol=args.distance_tol,
+                        init_points=np.array(replay_init, dtype=float),
+                        seed_family="archive_only",
+                    )
                 )
+        else:
+            for trial in range(args.trials):
+                outputs.append(
+                    run_single_trial(
+                        n=n,
+                        trial=trial,
+                        trial_seed=trial_seeds[trial],
+                        opt_method=args.opt_method,
+                        steps=args.steps,
+                        distance_tol=args.distance_tol,
+                    )
+                )
+
+    if archive_points:
+        for idx, archived in enumerate(archive_points[: min(4, max(1, args.trials // 10))]):
+            outputs.append(
+                {
+                    "trial": args.trials + idx,
+                    "seed_family": "archive_replay",
+                    "points": np.array(archived, dtype=float),
+                    "energy": 0.0,
+                    "distinct": count_distinct_distances(np.asarray(archived), tol=args.distance_tol),
+                    "max_distinct": max_distinct_from_point(np.asarray(archived), tol=args.distance_tol),
+                    "no_three": no_three_collinear(np.asarray(archived)),
+                }
             )
 
     results: List[TrialResult] = []
@@ -312,6 +463,7 @@ def execute_batch(
         print(f"  approximate point bound: {best.max_distinct} >= {floor_half} -> {best.max_distinct >= floor_half}")
 
     valid_certified = [r for r in certified_for_rank if r.exact_valid]
+    archive_entries: List[ArchiveEntry] = []
     if valid_certified:
         best_exact = min(r.exact_distinct_sq for r in valid_certified if r.exact_distinct_sq is not None)
         minimizers = [
@@ -337,6 +489,34 @@ def execute_batch(
             f"candidates={len(minimizers)}, shape-families={families}, signature-families={signature_families} "
             f"(tol={args.family_tol})"
         )
+
+        for result in minimizers[:archive_size]:
+            if result.exact_distinct_sq is None or result.exact_min_distinct is None or result.exact_max_distinct is None:
+                continue
+            archive_entries.append(
+                ArchiveEntry(
+                    n=n,
+                    exact_distinct_sq=int(result.exact_distinct_sq),
+                    exact_min_distinct_from_point=int(result.exact_min_distinct),
+                    exact_max_distinct_from_point=int(result.exact_max_distinct),
+                    exact_is_valid=bool(result.exact_valid),
+                    trial_id=int(result.trial_id),
+                    seed_family=str(result.seed_family),
+                    run_tag=run_tag,
+                    energy=float(result.energy),
+                    points=np.asarray(result.points),
+                )
+            )
+
+    if archive_path and archive_entries:
+        existing: List[dict[str, Any]] = []
+        archive_file = Path(archive_path)
+        if archive_file.exists():
+            try:
+                existing = json.loads(archive_file.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                existing = []
+        save_best_archive(archive_path, archive_entries, existing_entries=existing, max_entries=archive_size)
 
     best_exact_value = None
     if certified_for_rank and certified_for_rank[0].exact_distinct_sq is not None:
@@ -393,6 +573,10 @@ def main() -> None:
     parser.add_argument("--benchmark-runs", type=int, default=1, help="repeat count for each n value")
     parser.add_argument("--family-tol", type=float, default=0.02, help="shape-distance tolerance for family counting")
     parser.add_argument("--family-top", type=int, default=12, help="max certified minimizers used for #91 family evidence")
+    parser.add_argument("--archive-path", type=str, default="results/best_exact_archive.json", help="JSON archive of certified best candidates")
+    parser.add_argument("--archive-size", type=int, default=50, help="maximum number of certified archive entries to retain")
+    parser.add_argument("--replay-archive", action="store_true", help="seed future runs from certified archive survivors")
+    parser.add_argument("--archive-only", action="store_true", help="use only archived certified survivors as starting points")
     parser.add_argument(
         "--exact-ranking-all",
         action="store_true",
@@ -420,6 +604,10 @@ def main() -> None:
         parser.error("--family-tol must be > 0")
     if args.family_top < 2:
         parser.error("--family-top must be >= 2")
+    if args.archive_size < 1:
+        parser.error("--archive-size must be >= 1")
+    if args.archive_only and not args.replay_archive:
+        parser.error("--archive-only requires --replay-archive")
 
     n_values = parse_n_values(args)
     if not n_values:
@@ -429,6 +617,7 @@ def main() -> None:
     db = ExperimentDB(args.db_path)
     verifier = ExactVerifier(dps=args.cert_dps)
     ray_module = None
+    archive_points: List[np.ndarray] = []
 
     if args.mode == "ray":
         try:
@@ -440,6 +629,10 @@ def main() -> None:
 
     try:
         for n in n_values:
+            if args.replay_archive:
+                archive_points = load_best_archive(args.archive_path, n, limit=max(2, args.family_top // 2))
+                if args.archive_only and not archive_points:
+                    parser.error(f"--archive-only requested but no valid archive candidates found in {args.archive_path} for n={n}")
             best_exact_values: List[int] = []
             for r in range(args.benchmark_runs):
                 run_tag = f"{run_tag_prefix}_n{n}_r{r}"
@@ -451,9 +644,15 @@ def main() -> None:
                     verifier=verifier,
                     seed_offset=(n * 10_000 + r * 1_000_000),
                     ray_module=ray_module,
+                    archive_points=archive_points,
+                        archive_path=args.archive_path,
+                        archive_size=args.archive_size,
+                    archive_only=args.archive_only,
                 )
                 if best_exact is not None:
                     best_exact_values.append(best_exact)
+
+                    archive_points = db.get_best_points(n=n, limit=max(2, args.family_top // 2))
 
             if args.benchmark_runs > 1 and best_exact_values:
                 summarize_benchmark(

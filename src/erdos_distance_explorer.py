@@ -174,7 +174,8 @@ def energy_function(
     col = collinearity_penalty(points)
     dists = pdist(points)
     disp = float(np.sum(dists)) if dists.size else 0.0
-    return lambda_repeat * rep + lambda_col * col + lambda_disp * disp
+    repeat_loss = 1.0 / (rep + 1e-9)
+    return lambda_repeat * repeat_loss + lambda_col * col + lambda_disp * disp
 
 
 def propose_perturbation(points: Array2D, scale: float = 0.03, rng: Optional[np.random.Generator] = None) -> Array2D:
@@ -307,11 +308,72 @@ def seed_points(n: int, seed_type: str, dim: int, seed: Optional[int] = None) ->
             return perturbed_regular_polygon(n, radius=1.0, scale=0.12, seed=seed)
         if dim == 3:
             return fibonacci_sphere(n, radius=1.0, seed=seed)
+    if seed_type == "shells" and dim == 2:
+        return concentric_shell_seed(n, seed=seed)
+    if seed_type == "double_circle" and dim == 2:
+        return double_circle_seed(n, seed=seed)
+    if seed_type == "paired_polygon" and dim == 2:
+        return paired_polygon_seed(n, seed=seed)
     if seed_type == "uniform":
         return random_uniform_points(n, radius=1.0, dim=dim, seed=seed)
     if seed_type == "lattice":
         return lattice_patch(n, spacing=0.35, perturb=0.04, dim=dim, seed=seed)
     raise ValueError(f"Unknown seed type: {seed_type}")
+
+
+def concentric_shell_seed(n: int, seed: Optional[int] = None) -> Array2D:
+    rng = np.random.default_rng(seed)
+    points = []
+    shells = max(2, int(math.ceil(math.sqrt(n))))
+    index = 0
+    for shell in range(1, shells + 1):
+        per_shell = max(3, int(math.ceil(n / shells)))
+        radius = 0.55 * shell
+        offset = (shell % 2) * (np.pi / per_shell)
+        for k in range(per_shell):
+            theta = offset + 2.0 * np.pi * k / per_shell
+            points.append([radius * np.cos(theta), radius * np.sin(theta)])
+            index += 1
+            if index >= n:
+                break
+        if index >= n:
+            break
+    arr = np.array(points[:n], dtype=float)
+    arr += 0.005 * rng.standard_normal(arr.shape)
+    arr -= arr.mean(axis=0)
+    return arr
+
+
+def double_circle_seed(n: int, seed: Optional[int] = None) -> Array2D:
+    rng = np.random.default_rng(seed)
+    outer = max(3, n // 2)
+    inner = n - outer
+    points = []
+    for k in range(outer):
+        theta = 2.0 * np.pi * k / outer
+        points.append([np.cos(theta), np.sin(theta)])
+    for k in range(inner):
+        theta = 2.0 * np.pi * k / max(1, inner) + (np.pi / max(1, inner))
+        points.append([0.55 * np.cos(theta), 0.55 * np.sin(theta)])
+    arr = np.array(points[:n], dtype=float)
+    arr += 0.004 * rng.standard_normal(arr.shape)
+    arr -= arr.mean(axis=0)
+    return arr
+
+
+def paired_polygon_seed(n: int, seed: Optional[int] = None) -> Array2D:
+    rng = np.random.default_rng(seed)
+    points = []
+    m = max(3, n // 2)
+    for k in range(m):
+        theta = 2.0 * np.pi * k / m
+        points.append([np.cos(theta), np.sin(theta)])
+        if len(points) < n:
+            points.append([0.72 * np.cos(theta + np.pi / m), 0.72 * np.sin(theta + np.pi / m)])
+    arr = np.array(points[:n], dtype=float)
+    arr += 0.004 * rng.standard_normal(arr.shape)
+    arr -= arr.mean(axis=0)
+    return arr
 
 
 def generate_candidates(

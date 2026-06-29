@@ -97,6 +97,18 @@ Run benchmark mode (repeated runs with confidence summary):
 python run_experiments.py --n-list 8,10,12 --trials 60 --steps 250 --benchmark-runs 4 --certify-top 5 --exact-ranking-all
 ```
 
+Replay from the certified exact archive:
+
+```bash
+python run_experiments.py --n 12 --trials 80 --steps 300 --mode ray --ray-cpus 4 --certify-top 10 --exact-ranking-all --replay-archive
+```
+
+Use archive-only exploitation mode:
+
+```bash
+python run_experiments.py --n 12 --trials 80 --steps 300 --mode ray --ray-cpus 4 --certify-top 10 --exact-ranking-all --replay-archive --archive-only
+```
+
 Launch interactive dashboard:
 
 ```bash
@@ -140,6 +152,7 @@ The runner also stores:
 
 - benchmark summaries (mean/std/95% CI for best exact counts),
 - #91 family-evidence rows with estimated number of non-similar minimizer families among certified best candidates.
+- a persistent best-exact archive in results/best_exact_archive.json that can be replayed in later runs.
 
 ## Research roadmap
 

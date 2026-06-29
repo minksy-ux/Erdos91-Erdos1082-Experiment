@@ -277,6 +277,22 @@ class ExperimentDB:
             rows = conn.execute(query, params).fetchall()
             return [dict(row) for row in rows]
 
+    def get_best_points(self, n: Optional[int] = None, limit: int = 10) -> List[np.ndarray]:
+        query = (
+            "SELECT points_json FROM experiments "
+            "WHERE exact_distinct_sq IS NOT NULL AND exact_is_valid = 1"
+        )
+        params: List[Any] = []
+        if n is not None:
+            query += " AND n = ?"
+            params.append(n)
+        query += " ORDER BY exact_distinct_sq ASC, exact_min_distinct_from_point DESC, energy ASC LIMIT ?"
+        params.append(limit)
+
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(query, params).fetchall()
+            return [np.array(json.loads(row[0]), dtype=float) for row in rows if row[0]]
+
     def get_benchmark_summaries(self, n: Optional[int] = None, limit: int = 30) -> List[Dict[str, Any]]:
         query = (
             "SELECT id, run_tag, n, trials, benchmark_runs, mean_best_exact, std_best_exact, "
