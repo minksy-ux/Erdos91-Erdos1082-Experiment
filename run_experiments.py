@@ -351,7 +351,7 @@ def execute_batch(
                     )
                 )
 
-    if archive_points:
+    if archive_points and not archive_only:
         for idx, archived in enumerate(archive_points[: min(4, max(1, args.trials // 10))]):
             outputs.append(
                 {
@@ -645,8 +645,8 @@ def main() -> None:
                     seed_offset=(n * 10_000 + r * 1_000_000),
                     ray_module=ray_module,
                     archive_points=archive_points,
-                        archive_path=args.archive_path,
-                        archive_size=args.archive_size,
+                    archive_path=args.archive_path,
+                    archive_size=args.archive_size,
                     archive_only=args.archive_only,
                 )
                 if best_exact is not None:
