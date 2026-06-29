@@ -187,7 +187,14 @@ def load_best_archive(archive_path: str, n: int, limit: int = 8) -> List[np.ndar
     except json.JSONDecodeError:
         return []
 
-    entries = [item for item in payload if item.get("n") == n and item.get("exact_is_valid")]
+    entries = [
+        item
+        for item in payload
+        if item.get("n") == n
+        and item.get("exact_is_valid")
+        and item.get("exact_distinct_sq") is not None
+        and item.get("points")
+    ]
     entries.sort(
         key=lambda item: (
             item.get("exact_distinct_sq", 10**9),
@@ -195,7 +202,19 @@ def load_best_archive(archive_path: str, n: int, limit: int = 8) -> List[np.ndar
             item.get("energy", 10**9),
         )
     )
-    return [np.array(item.get("points", []), dtype=float) for item in entries[:limit] if item.get("points")]
+
+    seen: set[str] = set()
+    points_out: List[np.ndarray] = []
+    for item in entries:
+        key = item.get("signature") or json.dumps(item.get("points", []), sort_keys=True)
+        if key in seen:
+            continue
+        seen.add(key)
+        points_out.append(np.array(item.get("points", []), dtype=float))
+        if len(points_out) >= limit:
+            break
+
+    return points_out
 
 
 def save_best_archive(
@@ -556,6 +575,12 @@ def summarize_benchmark(db: ExperimentDB, run_tag_prefix: str, n: int, trials: i
     )
 
 
+def archive_pool_limit(args: argparse.Namespace) -> int:
+    if args.archive_only:
+        return max(1, args.archive_elite_count)
+    return max(1, min(args.archive_elite_count, args.trials))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run structured Erdos distance experiments")
     parser.add_argument("--n", type=int, default=10, help="number of points")
@@ -575,6 +600,7 @@ def main() -> None:
     parser.add_argument("--family-top", type=int, default=12, help="max certified minimizers used for #91 family evidence")
     parser.add_argument("--archive-path", type=str, default="results/best_exact_archive.json", help="JSON archive of certified best candidates")
     parser.add_argument("--archive-size", type=int, default=50, help="maximum number of certified archive entries to retain")
+    parser.add_argument("--archive-elite-count", type=int, default=8, help="number of top certified archive candidates used as replay seeds")
     parser.add_argument("--replay-archive", action="store_true", help="seed future runs from certified archive survivors")
     parser.add_argument("--archive-only", action="store_true", help="use only archived certified survivors as starting points")
     parser.add_argument(
@@ -606,6 +632,8 @@ def main() -> None:
         parser.error("--family-top must be >= 2")
     if args.archive_size < 1:
         parser.error("--archive-size must be >= 1")
+    if args.archive_elite_count < 1:
+        parser.error("--archive-elite-count must be >= 1")
     if args.archive_only and not args.replay_archive:
         parser.error("--archive-only requires --replay-archive")
 
@@ -630,7 +658,7 @@ def main() -> None:
     try:
         for n in n_values:
             if args.replay_archive:
-                archive_points = load_best_archive(args.archive_path, n, limit=max(2, args.family_top // 2))
+                archive_points = load_best_archive(args.archive_path, n, limit=archive_pool_limit(args))
                 if args.archive_only and not archive_points:
                     parser.error(f"--archive-only requested but no valid archive candidates found in {args.archive_path} for n={n}")
             best_exact_values: List[int] = []
@@ -652,7 +680,7 @@ def main() -> None:
                 if best_exact is not None:
                     best_exact_values.append(best_exact)
 
-                    archive_points = db.get_best_points(n=n, limit=max(2, args.family_top // 2))
+                    archive_points = db.get_best_points(n=n, limit=archive_pool_limit(args))
 
             if args.benchmark_runs > 1 and best_exact_values:
                 summarize_benchmark(

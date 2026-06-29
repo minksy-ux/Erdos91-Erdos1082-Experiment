@@ -109,6 +109,12 @@ Use archive-only exploitation mode:
 python run_experiments.py --n 12 --trials 80 --steps 300 --mode ray --ray-cpus 4 --certify-top 10 --exact-ranking-all --replay-archive --archive-only
 ```
 
+Control replay aggressiveness by limiting the archive elite pool (smaller means stronger exploitation):
+
+```bash
+python run_experiments.py --n 12 --trials 80 --steps 300 --certify-top 10 --exact-ranking-all --replay-archive --archive-only --archive-elite-count 4
+```
+
 Launch interactive dashboard:
 
 ```bash
