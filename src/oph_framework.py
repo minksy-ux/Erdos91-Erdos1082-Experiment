@@ -100,6 +100,8 @@ class ConfigurationAsSeamGraph:
         Uses tolerance to group nearly-identical distances.
         """
         distances = np.array([s.distance for s in self.seams.values()])
+        if distances.size == 0:
+            return 0
         distances_sorted = np.sort(distances)
         
         distinct = 1
@@ -193,7 +195,7 @@ class ConfigurationPatch:
                     dist_neighbor = seam.distance
                     break
             
-            if dist_self and dist_neighbor:
+            if dist_self is not None and dist_neighbor is not None:
                 if abs(dist_self - dist_neighbor) > tolerance:
                     return False
         
@@ -293,20 +295,27 @@ def audit_configuration(config: ConfigurationAsSeamGraph,
 def check_no_three_collinear(points: np.ndarray, tolerance: float = 1e-6) -> bool:
     """Check if any three points are collinear."""
     n = len(points)
-    for i, j, k in combinations(range(n), 3):
-        p1, p2, p3 = points[i], points[j], points[k]
-        
-        # Cross product (for 2D: z-component; for 3D: full vector)
-        v1 = p2 - p1
-        v2 = p3 - p1
-        
-        if points.shape[1] == 2:
-            cross = v1[0] * v2[1] - v1[1] * v2[0]
-            if abs(cross) < tolerance:
+    dim = points.shape[1]
+    if n < 3:
+        return True
+    if dim not in (2, 3):
+        raise ValueError("check_no_three_collinear supports only dim=2 or dim=3")
+
+    for i in range(n - 2):
+        vectors = points[i + 1 :] - points[i]
+        m = vectors.shape[0]
+        if m < 2:
+            continue
+
+        tri = np.triu_indices(m, k=1)
+        if dim == 2:
+            cross = vectors[:, None, 0] * vectors[None, :, 1] - vectors[:, None, 1] * vectors[None, :, 0]
+            if np.any(np.abs(cross[tri]) <= tolerance):
                 return False
         else:
-            cross = np.cross(v1, v2)
-            if np.linalg.norm(cross) < tolerance:
+            cross = np.cross(vectors[:, None, :], vectors[None, :, :], axis=-1)
+            norms = np.linalg.norm(cross, axis=-1)
+            if np.any(norms[tri] <= tolerance):
                 return False
     
     return True
@@ -315,18 +324,32 @@ def check_no_three_collinear(points: np.ndarray, tolerance: float = 1e-6) -> boo
 def verify_metric_space(seams: Dict[Tuple[int, int], DistanceSeam], 
                        tolerance: float = 1e-6) -> bool:
     """Verify triangle inequality and symmetry for all seams."""
-    # Simplified: check that no seam is extremely small relative to others
-    distances = [s.distance for s in seams.values()]
-    if not distances:
+    if not seams:
         return True
-    
-    max_dist = max(distances)
-    min_dist = min(distances)
-    
-    # Sanity check: max should be reasonable multiple of min
-    if min_dist > tolerance and max_dist / min_dist > 1e6:
-        return False
-    
+
+    matrix: Dict[Tuple[int, int], float] = {}
+    nodes: Set[int] = set()
+    for (i, j), seam in seams.items():
+        key = (min(i, j), max(i, j))
+        if seam.distance < -tolerance:
+            return False
+        matrix[key] = seam.distance
+        nodes.add(i)
+        nodes.add(j)
+
+    for i, j, k in combinations(sorted(nodes), 3):
+        dij = matrix.get((min(i, j), max(i, j)))
+        dik = matrix.get((min(i, k), max(i, k)))
+        djk = matrix.get((min(j, k), max(j, k)))
+        if dij is None or dik is None or djk is None:
+            continue
+        if dij > dik + djk + tolerance:
+            return False
+        if dik > dij + djk + tolerance:
+            return False
+        if djk > dij + dik + tolerance:
+            return False
+
     return True
 
 

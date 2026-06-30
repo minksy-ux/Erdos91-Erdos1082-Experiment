@@ -114,19 +114,27 @@ def max_distinct_from_point(points: Array2D, tol: float = 1e-6) -> int:
 
 def no_three_collinear(points: Array2D, tol: float = 1e-8) -> bool:
     n, dim = points.shape
-    for i in range(n):
-        for j in range(i + 1, n):
-            for k in range(j + 1, n):
-                v1 = points[j] - points[i]
-                v2 = points[k] - points[i]
-                if dim == 2:
-                    area2 = abs(v1[0] * v2[1] - v1[1] * v2[0])
-                elif dim == 3:
-                    area2 = np.linalg.norm(np.cross(v1, v2))
-                else:
-                    raise ValueError("no_three_collinear supports only dim=2 or dim=3")
-                if area2 <= tol:
-                    return False
+    if n < 3:
+        return True
+    if dim not in (2, 3):
+        raise ValueError("no_three_collinear supports only dim=2 or dim=3")
+
+    for i in range(n - 2):
+        vectors = points[i + 1 :] - points[i]
+        m = vectors.shape[0]
+        if m < 2:
+            continue
+
+        tri = np.triu_indices(m, k=1)
+        if dim == 2:
+            cross = vectors[:, None, 0] * vectors[None, :, 1] - vectors[:, None, 1] * vectors[None, :, 0]
+            if np.any(np.abs(cross[tri]) <= tol):
+                return False
+        else:
+            cross = np.cross(vectors[:, None, :], vectors[None, :, :], axis=-1)
+            norms = np.linalg.norm(cross, axis=-1)
+            if np.any(norms[tri] <= tol):
+                return False
     return True
 
 
@@ -150,16 +158,27 @@ def distance_repetition_energy(points: Array2D, num_bins: int = 30) -> float:
 
 
 def collinearity_penalty(points: Array2D, beta: float = 12.0) -> float:
-    _, dim = points.shape
-    n = len(points)
+    n, dim = points.shape
+    if n < 3:
+        return 0.0
+    if dim not in (2, 3):
+        raise ValueError("collinearity_penalty supports only dim=2 or dim=3")
+
     penalty = 0.0
-    for i in range(n):
-        for j in range(i + 1, n):
-            for k in range(j + 1, n):
-                v1 = points[j] - points[i]
-                v2 = points[k] - points[i]
-                area2 = triangle_area_measure(v1, v2, dim)
-                penalty += math.exp(-beta * area2)
+    for i in range(n - 2):
+        vectors = points[i + 1 :] - points[i]
+        m = vectors.shape[0]
+        if m < 2:
+            continue
+
+        tri = np.triu_indices(m, k=1)
+        if dim == 2:
+            cross = vectors[:, None, 0] * vectors[None, :, 1] - vectors[:, None, 1] * vectors[None, :, 0]
+            area2_vals = np.abs(cross[tri])
+        else:
+            cross = np.cross(vectors[:, None, :], vectors[None, :, :], axis=-1)
+            area2_vals = np.linalg.norm(cross, axis=-1)[tri]
+        penalty += float(np.exp(-beta * area2_vals).sum())
     return penalty
 
 
