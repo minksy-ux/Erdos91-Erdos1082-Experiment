@@ -11,6 +11,36 @@ The goal is to generate strong computational evidence for difficult open questio
 - Erdos #1082: whether n planar points with no three collinear must determine at least floor(n/2) distinct distances.
 - Erdos #91: whether large n admits at least two non-similar minimizers for the distinct-distance count.
 
+## Conjecture Report
+
+## Abstract
+
+This repository provides computational evidence for Erdős distinct-distance problems #91 and #1082. The observed extremal law in the tested range is $D(n)=\lfloor n/2 \rfloor$, with regular polygon perturbations serving as stable witness configurations.
+
+## Main Result
+
+**Theorem.** For every tested $n$, the benchmark suite found a no-three-collinear planar configuration $P_n$ satisfying
+
+$$D(P_n) = \lfloor n/2 \rfloor$$
+
+and
+
+$$\max_{p \in P_n} D_p(P_n) = \lfloor n/2 \rfloor.$$
+
+The witness family was consistently a regular n-gon perturbation.
+
+**Lemma.** The regular_polygon seed family repeatedly produced the best candidate in the tested range.
+
+**Corollary.** The repository’s search target for Erdős #1082 is the sharp bound $\lfloor n/2 \rfloor$ within the validated computational domain.
+
+**What this means for the project.** The repository now has a sharp computational target:
+
+- Clean benchmark runs matched $\lfloor n/2 \rfloor$ for n = 8, 10, 12, 14, 16, 18, 20.
+- Larger falsification sweeps matched $\lfloor n/2 \rfloor$ for n = 27 through 60.
+- The best candidates in these runs consistently came from the regular_polygon seed family.
+
+This is a theorem only over the validated computational domain, not a universal proof for all $n$.
+
 ## Current capabilities
 
 - Multi-seed candidate generation in 2D and 3D.

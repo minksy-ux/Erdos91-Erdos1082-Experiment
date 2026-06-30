@@ -672,7 +672,7 @@ def main() -> None:
                     verifier=verifier,
                     seed_offset=(n * 10_000 + r * 1_000_000),
                     ray_module=ray_module,
-                    archive_points=archive_points,
+                    archive_points=(archive_points if args.replay_archive else []),
                     archive_path=args.archive_path,
                     archive_size=args.archive_size,
                     archive_only=args.archive_only,
@@ -680,7 +680,8 @@ def main() -> None:
                 if best_exact is not None:
                     best_exact_values.append(best_exact)
 
-                    archive_points = db.get_best_points(n=n, limit=archive_pool_limit(args))
+                    if args.replay_archive:
+                        archive_points = db.get_best_points(n=n, limit=archive_pool_limit(args))
 
             if args.benchmark_runs > 1 and best_exact_values:
                 summarize_benchmark(
