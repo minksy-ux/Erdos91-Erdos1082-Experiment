@@ -13,9 +13,14 @@ from typing import Any, Dict, List
 @dataclass
 class EvidenceRow:
     n: int
+    report_count: int
     witness_runs: int
     total_runs: int
     witness_ratio: float
+    aggregate_witness_runs: int
+    aggregate_witness_ratio: float
+    aggregate_best_exact_sq: int | None
+    aggregate_candidate_count: int
     max_families: int
     max_signature_families: int
     min_best_exact_sq: int | None
@@ -36,12 +41,21 @@ def aggregate_for_n(summaries: List[Dict[str, Any]]) -> EvidenceRow:
     n = int(summaries[0]["n"])
     witness_runs = sum(int(s["witness_runs"]) for s in summaries)
     total_runs = sum(int(s["total_runs"]) for s in summaries)
+    aggregate_witness_runs = sum(1 for s in summaries if s.get("aggregate_witness_found"))
+    aggregate_witness_ratio = (aggregate_witness_runs / len(summaries)) if summaries else 0.0
     max_families = 0
     max_sig_families = 0
     min_exact: int | None = None
     max_exact: int | None = None
+    aggregate_best_exact_sq: int | None = None
+    aggregate_candidate_count = 0
 
     for s in summaries:
+        agg_exact = s.get("aggregate_best_exact_sq")
+        if agg_exact is not None:
+            agg_exact = int(agg_exact)
+            aggregate_best_exact_sq = agg_exact if aggregate_best_exact_sq is None else min(aggregate_best_exact_sq, agg_exact)
+        aggregate_candidate_count = max(aggregate_candidate_count, int(s.get("aggregate_candidate_count", 0)))
         for run in s.get("runs", []):
             max_families = max(max_families, int(run.get("num_families", 0)))
             max_sig_families = max(max_sig_families, int(run.get("num_signature_families", 0)))
@@ -57,9 +71,14 @@ def aggregate_for_n(summaries: List[Dict[str, Any]]) -> EvidenceRow:
     witness_ratio = (witness_runs / total_runs) if total_runs else 0.0
     return EvidenceRow(
         n=n,
+        report_count=len(summaries),
         witness_runs=witness_runs,
         total_runs=total_runs,
         witness_ratio=witness_ratio,
+        aggregate_witness_runs=aggregate_witness_runs,
+        aggregate_witness_ratio=aggregate_witness_ratio,
+        aggregate_best_exact_sq=aggregate_best_exact_sq,
+        aggregate_candidate_count=aggregate_candidate_count,
         max_families=max_families,
         max_signature_families=max_sig_families,
         min_best_exact_sq=min_exact,
@@ -71,17 +90,18 @@ def to_markdown(rows: List[EvidenceRow], top_k: int) -> str:
     lines = []
     lines.append("# Erdős #91 Proof-Evidence Scoreboard")
     lines.append("")
-    lines.append("Rows ranked by witness ratio, then max family split.")
+    lines.append("Rows ranked by aggregate witness ratio, then max family split.")
     lines.append("")
-    lines.append("| Rank | n | Witness Runs | Ratio | Max Families | Max Signature Families | Best Exact Range |")
-    lines.append("|---:|---:|---:|---:|---:|---:|---:|")
+    lines.append("| Rank | n | Aggregate Witness | Ratio | Max Families | Max Signature Families | Aggregate Best Exact | Best Exact Range |")
+    lines.append("|---:|---:|---:|---:|---:|---:|---:|---:|")
     for idx, row in enumerate(rows[:top_k], start=1):
         exact_range = "-"
         if row.min_best_exact_sq is not None and row.max_best_exact_sq is not None:
             exact_range = f"{row.min_best_exact_sq}..{row.max_best_exact_sq}"
+        aggregate_exact = "-" if row.aggregate_best_exact_sq is None else str(row.aggregate_best_exact_sq)
         lines.append(
-            f"| {idx} | {row.n} | {row.witness_runs}/{row.total_runs} | {row.witness_ratio:.2f} | "
-            f"{row.max_families} | {row.max_signature_families} | {exact_range} |"
+            f"| {idx} | {row.n} | {row.aggregate_witness_runs}/{row.report_count} | {row.aggregate_witness_ratio:.2f} | "
+            f"{row.max_families} | {row.max_signature_families} | {aggregate_exact} | {exact_range} |"
         )
     lines.append("")
     return "\n".join(lines)
@@ -99,7 +119,16 @@ def main() -> None:
 
     merged = load_reports(args.reports)
     rows = [aggregate_for_n(summaries) for _, summaries in merged.items()]
-    rows.sort(key=lambda r: (r.witness_ratio, r.max_families, r.max_signature_families, -r.n), reverse=True)
+    rows.sort(
+        key=lambda r: (
+            r.aggregate_witness_ratio,
+            r.aggregate_best_exact_sq is not None,
+            r.max_families,
+            r.max_signature_families,
+            -r.n,
+        ),
+        reverse=True,
+    )
 
     markdown = to_markdown(rows, top_k=args.top_k)
     out_path = Path(args.out)

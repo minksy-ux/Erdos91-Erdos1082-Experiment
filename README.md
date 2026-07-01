@@ -1,15 +1,15 @@
 # Erdos Rigidity Explorer
 
-A computational exploration framework for Erdos distinct-distance problems #91 and #1082.
+A computational research framework for Erdős distinct-distance problems #91 and #1082.
 
-This project currently combines geometric seeding, stochastic local optimization, distance-signature clustering, and rigidity-oriented graph utilities in a lightweight research prototype.
+The project combines geometric seeding, stochastic local optimization, distance-signature clustering, and rigidity-oriented graph utilities into a lightweight workflow for generating, certifying, and organizing candidate configurations.
 
-## Why this project
+## Why This Project
 
 The goal is to generate strong computational evidence for difficult open questions in discrete geometry:
 
-- Erdos #1082: whether n planar points with no three collinear must determine at least floor(n/2) distinct distances.
-- Erdos #91: whether large n admits at least two non-similar minimizers for the distinct-distance count.
+- Erdős #1082: whether $n$ planar points with no three collinear must determine at least $\lfloor n/2 \rfloor$ distinct distances.
+- Erdős #91: whether large $n$ admits at least two non-similar minimizers for the distinct-distance count.
 
 ## Conjecture Report
 
@@ -18,11 +18,11 @@ See the proof-gap closure plan in [PROOF_PROGRAM_91.md](PROOF_PROGRAM_91.md).
 
 ## Abstract
 
-This repository provides computational evidence for Erdős distinct-distance problems #91 and #1082. The observed extremal law in the tested range is $D(n)=\lfloor n/2 \rfloor$, with regular polygon perturbations serving as stable witness configurations.
+This repository provides computational evidence for Erdős distinct-distance problems #91 and #1082. In the validated testing range, the observed extremal law is $D(n)=\lfloor n/2 \rfloor$, with regular polygon perturbations serving as stable witness configurations.
 
-## Main Result
+## Validated Computational Result
 
-**Theorem.** For every tested $n$, the benchmark suite found a no-three-collinear planar configuration $P_n$ satisfying
+The repository’s benchmark suite repeatedly found, for every tested $n$, a no-three-collinear planar configuration $P_n$ satisfying
 
 $$D(P_n) = \lfloor n/2 \rfloor$$
 
@@ -30,11 +30,11 @@ and
 
 $$\max_{p \in P_n} D_p(P_n) = \lfloor n/2 \rfloor.$$
 
-The witness family was consistently a regular n-gon perturbation.
+The witness family was consistently a regular $n$-gon perturbation.
 
-**Lemma.** The regular_polygon seed family repeatedly produced the best candidate in the tested range.
+The `regular_polygon` seed family repeatedly produced the best candidate in the tested range.
 
-**Corollary.** The repository’s search target for Erdős #1082 is the sharp bound $\lfloor n/2 \rfloor$ within the validated computational domain.
+Within the validated computational domain, the search target for Erdős #1082 is the sharp bound $\lfloor n/2 \rfloor$.
 
 **What this means for the project.** The repository now has a sharp computational target:
 
@@ -61,7 +61,7 @@ where $m_n$ is the minimum number of distinct distances among all such $n$-point
 
 This is the cleanest mathematical target for Erdős problem #91: the extremal configurations should not all lie in a single similarity class.
 
-## Current capabilities
+## Current Capabilities
 
 - Multi-seed candidate generation in 2D and 3D.
 - Three optimization modes: hill climb, simulated annealing, and direct distinct-distance objective.
@@ -70,16 +70,16 @@ This is the cleanest mathematical target for Erdős problem #91: the extremal co
 - Candidate clustering by exact distance signature, Procrustes distance, or shape similarity.
 - JSON export and plotting for top candidates.
 
-## Project layout
+## Project Layout
 
-- src/erdos_distance_explorer.py: experiment runner and optimization pipeline.
-- src/graph_rigidity.py: graph-level rigidity helpers and summary tools.
-- src/verification/exact_verifier.py: exact symbolic certification for 2D candidates.
-- src/utils/database.py: SQLite experiment tracking.
-- run_experiments.py: structured multi-seed search runner with certification output.
-- proof_search_91.py: proof-search driver for Erdős #91 minimizer families.
-- summarize_proof_evidence.py: ranks and summarizes #91 computational evidence reports.
-- generate_91_witness_certificate.py: emits explicit non-similar minimizer witness certificates.
+- [src/erdos_distance_explorer.py](src/erdos_distance_explorer.py): experiment runner and optimization pipeline.
+- [src/graph_rigidity.py](src/graph_rigidity.py): graph-level rigidity helpers and summary tools.
+- [src/verification/exact_verifier.py](src/verification/exact_verifier.py): exact symbolic certification for 2D candidates.
+- [src/utils/database.py](src/utils/database.py): SQLite experiment tracking.
+- [run_experiments.py](run_experiments.py): structured multi-seed search runner with certification output.
+- [proof_search_91.py](proof_search_91.py): proof-search driver for Erdős #91 minimizer families.
+- [summarize_proof_evidence.py](summarize_proof_evidence.py): ranks and summarizes #91 computational evidence reports.
+- [generate_91_witness_certificate.py](generate_91_witness_certificate.py): emits explicit non-similar minimizer witness certificates.
 - plots/: generated figures.
 - out/: generated candidate exports.
 - results/: SQLite experiment database.

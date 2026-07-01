@@ -51,6 +51,11 @@ class ProofSearchSummary:
     max_best_exact_sq: Optional[int]
     witness_runs: int
     total_runs: int
+    aggregate_best_exact_sq: Optional[int]
+    aggregate_candidate_count: int
+    aggregate_num_families: int
+    aggregate_num_signature_families: int
+    aggregate_witness_found: bool
     runs: List[ProofSearchRun]
 
 
@@ -112,6 +117,7 @@ def run_proof_search_for_n(
     best_exact_values: List[int] = []
     runs: List[ProofSearchRun] = []
     archive_points = []
+    all_valid_results = []
 
     if args.replay_archive:
         archive_points = load_best_archive(args.archive_path, n, limit=archive_pool_limit(args))
@@ -136,6 +142,7 @@ def run_proof_search_for_n(
             best_exact_values.append(best_exact)
 
         valid_results = [result for result in results if result.exact_valid and result.exact_distinct_sq is not None]
+        all_valid_results.extend(valid_results)
         if valid_results:
             best_exact_sq = min(result.exact_distinct_sq for result in valid_results if result.exact_distinct_sq is not None)
             minimizers = [result for result in valid_results if result.exact_distinct_sq == best_exact_sq]
@@ -185,6 +192,27 @@ def run_proof_search_for_n(
     max_best_exact_sq = max(best_exact_values) if best_exact_values else None
     witness_runs = sum(1 for item in runs if item.witness_found)
 
+    aggregate_best_exact_sq: Optional[int] = None
+    aggregate_candidate_count = 0
+    aggregate_num_families = 0
+    aggregate_num_signature_families = 0
+    aggregate_witness_found = False
+    if all_valid_results:
+        aggregate_best_exact_sq = min(
+            result.exact_distinct_sq for result in all_valid_results if result.exact_distinct_sq is not None
+        )
+        aggregate_minimizers = [
+            result
+            for result in all_valid_results
+            if result.exact_distinct_sq == aggregate_best_exact_sq
+        ]
+        aggregate_candidate_count = len(aggregate_minimizers)
+        aggregate_num_families, aggregate_num_signature_families, _, _ = family_count(
+            aggregate_minimizers,
+            tol=args.family_tol,
+        )
+        aggregate_witness_found = aggregate_num_families >= args.min_families
+
     return ProofSearchSummary(
         n=n,
         benchmark_runs=args.benchmark_runs,
@@ -194,6 +222,11 @@ def run_proof_search_for_n(
         max_best_exact_sq=max_best_exact_sq,
         witness_runs=witness_runs,
         total_runs=len(runs),
+        aggregate_best_exact_sq=aggregate_best_exact_sq,
+        aggregate_candidate_count=aggregate_candidate_count,
+        aggregate_num_families=aggregate_num_families,
+        aggregate_num_signature_families=aggregate_num_signature_families,
+        aggregate_witness_found=aggregate_witness_found,
         runs=runs,
     )
 
@@ -207,6 +240,12 @@ def print_summary(summary: ProofSearchSummary) -> None:
         )
     else:
         print("  no exact-certified candidates were found")
+    if summary.aggregate_best_exact_sq is not None:
+        print(
+            f"  aggregate_best_exact_sq={summary.aggregate_best_exact_sq} candidates={summary.aggregate_candidate_count} "
+            f"families={summary.aggregate_num_families} signature_families={summary.aggregate_num_signature_families} "
+            f"witness={summary.aggregate_witness_found}"
+        )
     print(f"  witness_runs={summary.witness_runs}/{summary.total_runs}")
     for item in summary.runs:
         if item.best_exact_sq is None:
