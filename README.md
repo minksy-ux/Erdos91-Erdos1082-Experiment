@@ -13,6 +13,9 @@ The goal is to generate strong computational evidence for difficult open questio
 
 ## Conjecture Report
 
+See the compact writeup in [FORMAL_NOTE.md](FORMAL_NOTE.md).
+See the proof-gap closure plan in [PROOF_PROGRAM_91.md](PROOF_PROGRAM_91.md).
+
 ## Abstract
 
 This repository provides computational evidence for Erdős distinct-distance problems #91 and #1082. The observed extremal law in the tested range is $D(n)=\lfloor n/2 \rfloor$, with regular polygon perturbations serving as stable witness configurations.
@@ -41,6 +44,23 @@ The witness family was consistently a regular n-gon perturbation.
 
 This is a theorem only over the validated computational domain, not a universal proof for all $n$.
 
+## Erdős #91 Conjecture
+
+**Notation.** For a finite set $A \subset \mathbb{R}^2$, let $D(A)$ denote the number of distinct interpoint distances determined by $A$. For each $n$, let $m_n$ be the minimum of $D(A)$ over all $n$-point sets in no-three-collinear position, and let $\operatorname{Min}_n$ be the set of all minimizers.
+
+**Conjecture (non-uniqueness of extremizers).** There exists $N \in \mathbb{N}$ such that for every $n \ge N$, if
+
+$$
+\operatorname{Min}_n
+=
+\{A \subset \mathbb{R}^2 : |A| = n,\ A \text{ has no three collinear, and } D(A)=m_n\},
+$$
+where $m_n$ is the minimum number of distinct distances among all such $n$-point sets, then the quotient $\operatorname{Min}_n / \sim$ under Euclidean similarity has cardinality at least $2$.
+
+**Equivalent form.** For every sufficiently large $n$, there exist two minimizers $A_n, B_n \in \operatorname{Min}_n$ such that $A_n \not\sim B_n$.
+
+This is the cleanest mathematical target for Erdős problem #91: the extremal configurations should not all lie in a single similarity class.
+
 ## Current capabilities
 
 - Multi-seed candidate generation in 2D and 3D.
@@ -57,6 +77,9 @@ This is a theorem only over the validated computational domain, not a universal 
 - src/verification/exact_verifier.py: exact symbolic certification for 2D candidates.
 - src/utils/database.py: SQLite experiment tracking.
 - run_experiments.py: structured multi-seed search runner with certification output.
+- proof_search_91.py: proof-search driver for Erdős #91 minimizer families.
+- summarize_proof_evidence.py: ranks and summarizes #91 computational evidence reports.
+- generate_91_witness_certificate.py: emits explicit non-similar minimizer witness certificates.
 - plots/: generated figures.
 - out/: generated candidate exports.
 - results/: SQLite experiment database.
@@ -125,6 +148,39 @@ Run benchmark mode (repeated runs with confidence summary):
 
 ```bash
 python run_experiments.py --n-list 8,10,12 --trials 60 --steps 250 --benchmark-runs 4 --certify-top 5 --exact-ranking-all
+```
+
+Run #91 proof-search mode (exact minimizer families + hull/interior diagnostics):
+
+```bash
+PYTHONPATH=src python proof_search_91.py --n-list 12,14,16,18,20 --trials 40 --steps 300 --benchmark-runs 3 --report-json results/proof_search_91_report.json
+```
+
+Build a ranked #91 evidence scoreboard from one or more proof-search reports:
+
+```bash
+python summarize_proof_evidence.py --reports results/proof_search_91_strong_anneal.json results/proof_search_91_wide_22_40.json --top-k 12 --out results/proof_evidence_scoreboard.md
+```
+
+Generate explicit #91 witness certificates (markdown + JSON sidecar with canonical normalized coordinates):
+
+```bash
+PYTHONPATH=src python generate_91_witness_certificate.py --db-path results/proof_search_91.db --n 26 --shape-tol 0.01 --invariant-tol 1e-10 --out results/erdos91_witness_n26.md --json-out results/erdos91_witness_n26.json
+PYTHONPATH=src python generate_91_witness_certificate.py --db-path results/proof_search_91.db --n 14 --shape-tol 0.01 --invariant-tol 1e-10 --out results/erdos91_witness_n14.md --json-out results/erdos91_witness_n14.json
+```
+
+Generate a multi-n appendix in one command (per-n files plus a combined appendix table):
+
+```bash
+PYTHONPATH=src python generate_91_witness_certificate.py --db-path results/proof_search_91.db --n-list 14,26 --shape-tol 0.01 --invariant-tol 1e-10 --out results/erdos91_witness_n{n}.md --json-out results/erdos91_witness_n{n}.json --appendix-out results/erdos91_witness_appendix.md
+```
+
+These certificates provide a concrete pair of certified minimizers with equal exact objective, quantified non-similarity, and an evidence-grade non-similarity proof object with explicit check logs.
+
+Independently verify proof objects from saved certificate JSON files (no search rerun required):
+
+```bash
+PYTHONPATH=src python verify_witness_proof_object.py --inputs results/erdos91_witness_n14.json results/erdos91_witness_n26.json --invariant-tol 1e-10 --strict
 ```
 
 Replay from the certified exact archive:
