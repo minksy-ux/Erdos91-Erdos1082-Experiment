@@ -157,6 +157,25 @@ def distance_repetition_energy(points: Array2D, num_bins: int = 30) -> float:
     return float(np.sum(hist**2))
 
 
+def soft_cluster_energy(points: Array2D, bandwidth: float = 0.02) -> float:
+    """Kernel-based distance repetition measure.
+
+    Uses a Gaussian kernel to estimate how much distance pairs overlap.
+    Returns a value in (0, 1] that is HIGH when pairwise distances cluster
+    together (few distinct distances) and LOW when they are well spread out.
+    This provides a smoother gradient signal than the histogram-based measure.
+    """
+    dists = pdist(points)
+    if len(dists) < 2:
+        return 0.0
+    diff = dists[:, None] - dists[None, :]
+    K = np.exp(-0.5 * (diff / bandwidth) ** 2)
+    n = len(dists)
+    # Mean off-diagonal kernel value (exclude trivial self-comparisons)
+    total = (K.sum() - n) / max(1, n * (n - 1))
+    return float(total)
+
+
 def collinearity_penalty(points: Array2D, beta: float = 12.0) -> float:
     n, dim = points.shape
     if n < 3:
@@ -187,14 +206,18 @@ def energy_function(
     lambda_repeat: float = 4.0,
     lambda_col: float = 20.0,
     lambda_disp: float = 0.01,
+    lambda_soft: float = 2.0,
     num_bins: int = 30,
 ) -> float:
     rep = distance_repetition_energy(points, num_bins=num_bins)
+    soft = soft_cluster_energy(points)
     col = collinearity_penalty(points)
     dists = pdist(points)
     disp = float(np.sum(dists)) if dists.size else 0.0
+    # Both terms are low when distances repeat a lot (few distinct distances).
     repeat_loss = 1.0 / (rep + 1e-9)
-    return lambda_repeat * repeat_loss + lambda_col * col + lambda_disp * disp
+    soft_loss = 1.0 / (soft + 1e-9)
+    return lambda_repeat * repeat_loss + lambda_soft * soft_loss + lambda_col * col + lambda_disp * disp
 
 
 def propose_perturbation(points: Array2D, scale: float = 0.03, rng: Optional[np.random.Generator] = None) -> Array2D:
@@ -238,16 +261,26 @@ def simulated_annealing_optimize(
     temp_start: float = 0.08,
     temp_end: float = 0.001,
     seed: Optional[int] = None,
+    restart_every: int = 500,
 ) -> Tuple[Array2D, float]:
     rng = np.random.default_rng(seed)
     best = init_points.copy()
     best_energy = energy_function(best)
     current = best.copy()
     current_energy = best_energy
+    current_scale = scale
+    steps_no_improve = 0
 
     for step in range(steps):
         temperature = temp_start * ((temp_end / temp_start) ** (step / max(1, steps - 1)))
-        candidate = propose_perturbation(current, scale=scale, rng=rng)
+        # Alternate between perturbing all points and a single random point
+        # for a mix of global and local moves.
+        if rng.random() < 0.3:
+            idx = int(rng.integers(len(current)))
+            candidate = current.copy()
+            candidate[idx] += rng.normal(scale=current_scale, size=current.shape[1])
+        else:
+            candidate = propose_perturbation(current, scale=current_scale, rng=rng)
         candidate_energy = energy_function(candidate)
         delta = candidate_energy - current_energy
         if delta <= 0.0 or math.exp(-delta / temperature) > rng.random():
@@ -256,11 +289,55 @@ def simulated_annealing_optimize(
             if candidate_energy < best_energy:
                 best = candidate
                 best_energy = candidate_energy
+                steps_no_improve = 0
+            else:
+                steps_no_improve += 1
+        else:
+            steps_no_improve += 1
 
         if step % 200 == 0 and step > 0:
-            scale *= 0.98
+            current_scale *= 0.98
+
+        # Restart from best when stuck; use a smaller scale for local refinement
+        if steps_no_improve >= restart_every:
+            current = best.copy()
+            current_energy = best_energy
+            current_scale = scale * 0.5
+            steps_no_improve = 0
 
     return best, best_energy
+
+
+def scipy_local_optimize(
+    init_points: Array2D,
+    steps: int = 2000,
+) -> Tuple[Array2D, float]:
+    """Polish a solution with scipy Nelder-Mead to reach a true local minimum.
+
+    Nelder-Mead works without gradient information and is well-suited for the
+    non-smooth energy landscape here.  Use this as a final polishing step after
+    a stochastic optimizer (SA / hillclimb) to eliminate remaining slack.
+    """
+    from scipy.optimize import minimize as _scipy_minimize
+
+    n, dim = init_points.shape
+
+    def _objective(flat: np.ndarray) -> float:
+        return energy_function(flat.reshape(n, dim))
+
+    result = _scipy_minimize(
+        _objective,
+        init_points.flatten(),
+        method="Nelder-Mead",
+        options={
+            "maxiter": steps * n,
+            "xatol": 1e-8,
+            "fatol": 1e-8,
+            "adaptive": True,
+        },
+    )
+    best = result.x.reshape(n, dim)
+    return best, float(result.fun)
 
 
 def distinct_distance_objective(points: Array2D, tol: float = 1e-6) -> Tuple[int, float]:
@@ -316,6 +393,20 @@ def optimize_candidate(
             temp_end=temp_end,
             seed=seed,
         )
+    if method == "anneal_polish":
+        # SA followed by a Nelder-Mead local polish to reach a true local min.
+        # Splits the step budget: 80% SA, 20% Nelder-Mead.
+        sa_steps = max(100, int(steps * 0.8))
+        polish_steps = max(50, steps - sa_steps)
+        pts, _ = simulated_annealing_optimize(
+            init_points,
+            steps=sa_steps,
+            scale=scale,
+            temp_start=temp_start,
+            temp_end=temp_end,
+            seed=seed,
+        )
+        return scipy_local_optimize(pts, steps=polish_steps)
     if method == "direct":
         return direct_distinct_optimize(init_points, steps=steps, scale=scale, tol=distance_tol, seed=seed)
     raise ValueError(f"Unknown optimization method: {method}")

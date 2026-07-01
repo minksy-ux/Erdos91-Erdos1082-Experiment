@@ -125,6 +125,8 @@ def choose_seed(n: int, trial_idx: int, rng: np.random.Generator) -> tuple[np.nd
         rig = rigidity_seed(n, rng)
         if rig is not None:
             return rig, "rigidity_laman"
+        # Fall back to concentric shells when rigidity graph generation fails
+        return concentric_shell_seed(n, seed=int(rng.integers(1_000_000))), "concentric_shells_fallback"
     if mode == 4:
         return concentric_shell_seed(n, seed=int(rng.integers(1_000_000))), "concentric_shells"
     if mode == 5:
