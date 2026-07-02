@@ -129,6 +129,98 @@ def _normalized_sq_spectrum(points: np.ndarray, tol: float = 1e-10) -> Tuple[flo
     return tuple(sorted(normalized))
 
 
+def _normalized_area2_spectrum(points: np.ndarray, tol: float = 1e-10) -> Tuple[float, ...]:
+    """Similarity-invariant spectrum of squared doubled-triangle areas.
+
+    For each triple (i, j, k), use area2 = |(p_j - p_i) x (p_k - p_i)|.
+    Under similarity transforms, area2 scales by s^2, so area2^2 scales by s^4.
+    Normalizing by the minimum positive value makes the multiset scale-invariant.
+    """
+    vals: List[float] = []
+    n = len(points)
+    for i in range(n - 2):
+        pi = points[i]
+        for j in range(i + 1, n - 1):
+            v1 = points[j] - pi
+            for k in range(j + 1, n):
+                v2 = points[k] - pi
+                area2 = abs(float(v1[0] * v2[1] - v1[1] * v2[0]))
+                if area2 > tol:
+                    vals.append(area2 * area2)
+
+    if not vals:
+        return tuple()
+
+    base = min(vals)
+    normalized = [round((v / base) / tol) * tol for v in vals]
+    return tuple(sorted(normalized))
+
+
+def _normalized_gram_eigen_spectrum(points: np.ndarray, tol: float = 1e-10) -> Tuple[float, ...]:
+    """Similarity-invariant centered Gram eigenvalue ratios.
+
+    Let X be centered coordinates (rows are points), G = X X^T.
+    Non-zero eigenvalues of G are invariant under orthogonal transforms and scale by s^2.
+    Dividing by the largest positive eigenvalue removes scale.
+    """
+    centered = points - points.mean(axis=0)
+    gram = centered @ centered.T
+    eigvals = np.linalg.eigvalsh(gram)
+    positive = [float(v) for v in eigvals if v > tol]
+    if not positive:
+        return tuple()
+
+    top = max(positive)
+    normalized = [round((v / top) / tol) * tol for v in sorted(positive, reverse=True)]
+    return tuple(normalized)
+
+
+def _build_mismatch_certificate(a: Tuple[float, ...], b: Tuple[float, ...], tol: float) -> Dict[str, Any]:
+    """Build an interval-style mismatch certificate for rounded invariant spectra.
+
+    Each rounded value has effective uncertainty up to tol/2 from quantization.
+    For aligned mismatching entries, a conservative lower bound is
+    max(0, |a_i - b_i| - tol).
+    Positive lower bound certifies true mismatch under this uncertainty model.
+    """
+    if len(a) != len(b):
+        return {
+            "length_a": len(a),
+            "length_b": len(b),
+            "mismatch_detected": True,
+            "certified_mismatch": True,
+            "certified_lower_bound": None,
+            "reason": "length_mismatch",
+            "comparison_tol": tol,
+        }
+
+    diffs = [abs(float(x) - float(y)) for x, y in zip(a, b)]
+    mismatch_diffs = [d for d in diffs if d > 0.0]
+    if not mismatch_diffs:
+        return {
+            "length_a": len(a),
+            "length_b": len(b),
+            "mismatch_detected": False,
+            "certified_mismatch": False,
+            "certified_lower_bound": 0.0,
+            "reason": "no_mismatch",
+            "comparison_tol": tol,
+        }
+
+    min_diff = min(mismatch_diffs)
+    lower_bound = max(0.0, min_diff - tol)
+    return {
+        "length_a": len(a),
+        "length_b": len(b),
+        "mismatch_detected": True,
+        "certified_mismatch": lower_bound > 0.0,
+        "certified_lower_bound": lower_bound,
+        "min_observed_mismatch": min_diff,
+        "reason": "value_mismatch",
+        "comparison_tol": tol,
+    }
+
+
 def _build_non_similarity_proof_object(
     *,
     a: CandidateRow,
@@ -141,6 +233,13 @@ def _build_non_similarity_proof_object(
     sig_b = signature_from_points(b.points, tol=1e-6)
     spectrum_a = _normalized_sq_spectrum(a.points, tol=invariant_tol)
     spectrum_b = _normalized_sq_spectrum(b.points, tol=invariant_tol)
+    area_spectrum_a = _normalized_area2_spectrum(a.points, tol=invariant_tol)
+    area_spectrum_b = _normalized_area2_spectrum(b.points, tol=invariant_tol)
+    gram_spectrum_a = _normalized_gram_eigen_spectrum(a.points, tol=invariant_tol)
+    gram_spectrum_b = _normalized_gram_eigen_spectrum(b.points, tol=invariant_tol)
+    spectrum_cert = _build_mismatch_certificate(spectrum_a, spectrum_b, invariant_tol)
+    area_spectrum_cert = _build_mismatch_certificate(area_spectrum_a, area_spectrum_b, invariant_tol)
+    gram_spectrum_cert = _build_mismatch_certificate(gram_spectrum_a, gram_spectrum_b, invariant_tol)
 
     checks: List[Dict[str, Any]] = [
         {
@@ -163,10 +262,45 @@ def _build_non_similarity_proof_object(
             "passed": spectrum_a != spectrum_b,
             "details": f"spectrum_equal={spectrum_a == spectrum_b}, invariant_tol={invariant_tol}",
         },
+        {
+            "name": "normalized_area2_spectrum_mismatch",
+            "passed": area_spectrum_a != area_spectrum_b,
+            "details": f"area_spectrum_equal={area_spectrum_a == area_spectrum_b}, invariant_tol={invariant_tol}",
+        },
+        {
+            "name": "normalized_gram_eigen_spectrum_mismatch",
+            "passed": gram_spectrum_a != gram_spectrum_b,
+            "details": f"gram_spectrum_equal={gram_spectrum_a == gram_spectrum_b}, invariant_tol={invariant_tol}",
+        },
+        {
+            "name": "normalized_sq_spectrum_certified_mismatch",
+            "passed": bool(spectrum_cert["certified_mismatch"]),
+            "details": f"lower_bound={spectrum_cert.get('certified_lower_bound')}, invariant_tol={invariant_tol}",
+        },
+        {
+            "name": "normalized_area2_spectrum_certified_mismatch",
+            "passed": bool(area_spectrum_cert["certified_mismatch"]),
+            "details": f"lower_bound={area_spectrum_cert.get('certified_lower_bound')}, invariant_tol={invariant_tol}",
+        },
+        {
+            "name": "normalized_gram_eigen_spectrum_certified_mismatch",
+            "passed": bool(gram_spectrum_cert["certified_mismatch"]),
+            "details": f"lower_bound={gram_spectrum_cert.get('certified_lower_bound')}, invariant_tol={invariant_tol}",
+        },
     ]
 
     passed_names = [check["name"] for check in checks if check["passed"]]
-    separating = [name for name in passed_names if name in {"distance_signature_mismatch", "normalized_sq_spectrum_mismatch"}]
+    separating = [
+        name
+        for name in passed_names
+        if name
+        in {
+            "distance_signature_mismatch",
+            "normalized_sq_spectrum_mismatch",
+            "normalized_area2_spectrum_mismatch",
+            "normalized_gram_eigen_spectrum_mismatch",
+        }
+    ]
 
     verification_log = [
         "Input rows loaded from exact-valid experiment records.",
@@ -182,6 +316,23 @@ def _build_non_similarity_proof_object(
         "separating_checks": separating,
         "checks": checks,
         "verification_log": verification_log,
+        "invariant_snapshots": {
+            "normalized_sq_spectrum": {
+                "a": list(spectrum_a),
+                "b": list(spectrum_b),
+                "mismatch_certificate": spectrum_cert,
+            },
+            "normalized_area2_spectrum": {
+                "a": list(area_spectrum_a),
+                "b": list(area_spectrum_b),
+                "mismatch_certificate": area_spectrum_cert,
+            },
+            "normalized_gram_eigen_spectrum": {
+                "a": list(gram_spectrum_a),
+                "b": list(gram_spectrum_b),
+                "mismatch_certificate": gram_spectrum_cert,
+            },
+        },
         "disclaimer": "This object is numerical evidence with explicit checks; it is not a universal formal proof.",
     }
 

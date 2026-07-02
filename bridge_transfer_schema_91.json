@@ -1,0 +1,53 @@
+{
+  "schema_id": "bridge-transfer-proof-91-v1",
+  "description": "Schema for machine-readable finite bridge transfer objects for Erdos #91.",
+  "required_top_level_fields": [
+    "schema_id",
+    "proof_object_id",
+    "hypothesis_source",
+    "required_hypotheses",
+    "verified_transitions",
+    "window_composition",
+    "conclusion",
+    "generated_from"
+  ],
+  "required_hypotheses": {
+    "H_witness": {
+      "fields": [
+        "witness_found",
+        "non_similarity_decision",
+        "required_separating_checks",
+        "required_core_family"
+      ]
+    },
+    "H_anchor": {
+      "fields": [
+        "bounded_exclusion_gap_positive",
+        "consensus_plateau_fixed"
+      ]
+    }
+  },
+  "verified_transition_fields": [
+    "source_n",
+    "target_n",
+    "status",
+    "source_witness",
+    "target_witness",
+    "source_required_checks_present",
+    "target_required_checks_present"
+  ],
+  "window_composition_fields": [
+    "window_start",
+    "window_end",
+    "status",
+    "certified_edges",
+    "blocked_edges",
+    "anchor_support"
+  ],
+  "conclusion_fields": [
+    "transfer_lemma_status",
+    "n_plus_2_status",
+    "surrogate_step_status",
+    "next_required_unlock"
+  ]
+}

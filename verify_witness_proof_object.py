@@ -39,12 +39,76 @@ def _normalized_sq_spectrum(points: np.ndarray, tol: float = 1e-10) -> Tuple[flo
     return tuple(sorted(normalized))
 
 
+def _normalized_area2_spectrum(points: np.ndarray, tol: float = 1e-10) -> Tuple[float, ...]:
+    vals: List[float] = []
+    n = len(points)
+    for i in range(n - 2):
+        pi = points[i]
+        for j in range(i + 1, n - 1):
+            v1 = points[j] - pi
+            for k in range(j + 1, n):
+                v2 = points[k] - pi
+                area2 = abs(float(v1[0] * v2[1] - v1[1] * v2[0]))
+                if area2 > tol:
+                    vals.append(area2 * area2)
+    if not vals:
+        return tuple()
+    base = min(vals)
+    normalized = [round((v / base) / tol) * tol for v in vals]
+    return tuple(sorted(normalized))
+
+
+def _normalized_gram_eigen_spectrum(points: np.ndarray, tol: float = 1e-10) -> Tuple[float, ...]:
+    centered = points - points.mean(axis=0)
+    gram = centered @ centered.T
+    eigvals = np.linalg.eigvalsh(gram)
+    positive = [float(v) for v in eigvals if v > tol]
+    if not positive:
+        return tuple()
+    top = max(positive)
+    normalized = [round((v / top) / tol) * tol for v in sorted(positive, reverse=True)]
+    return tuple(normalized)
+
+
+def _build_mismatch_certificate(a: Tuple[float, ...], b: Tuple[float, ...], tol: float) -> Dict[str, Any]:
+    if len(a) != len(b):
+        return {
+            "mismatch_detected": True,
+            "certified_mismatch": True,
+            "certified_lower_bound": None,
+            "reason": "length_mismatch",
+        }
+
+    diffs = [abs(float(x) - float(y)) for x, y in zip(a, b)]
+    mismatch_diffs = [d for d in diffs if d > 0.0]
+    if not mismatch_diffs:
+        return {
+            "mismatch_detected": False,
+            "certified_mismatch": False,
+            "certified_lower_bound": 0.0,
+            "reason": "no_mismatch",
+        }
+
+    min_diff = min(mismatch_diffs)
+    lower_bound = max(0.0, min_diff - tol)
+    return {
+        "mismatch_detected": True,
+        "certified_mismatch": lower_bound > 0.0,
+        "certified_lower_bound": lower_bound,
+        "reason": "value_mismatch",
+    }
+
+
 def _load_points(payload: Dict[str, Any], key: str) -> np.ndarray:
     raw = payload["witness"][key]["canonical_normalized_points"]
     return np.array(raw, dtype=float)
 
 
 def verify_payload(payload: Dict[str, Any], invariant_tol: float) -> Tuple[bool, List[CheckResult], bool]:
+    if "witness_found" not in payload or "non_similarity_proof_object" not in payload:
+        # Not a witness certificate JSON payload.
+        return True, [], False
+
     if not payload.get("witness_found", False):
         # No witness pair exists, so no positive non-similarity claim to verify.
         return True, [], False
@@ -70,6 +134,25 @@ def verify_payload(payload: Dict[str, Any], invariant_tol: float) -> Tuple[bool,
     actual_sig_mismatch = not sig_equal
     spectrum_equal = _normalized_sq_spectrum(points_a, tol=invariant_tol) == _normalized_sq_spectrum(points_b, tol=invariant_tol)
     actual_spectrum_mismatch = not spectrum_equal
+    area_spectrum_equal = _normalized_area2_spectrum(points_a, tol=invariant_tol) == _normalized_area2_spectrum(points_b, tol=invariant_tol)
+    actual_area_spectrum_mismatch = not area_spectrum_equal
+    gram_spectrum_equal = _normalized_gram_eigen_spectrum(points_a, tol=invariant_tol) == _normalized_gram_eigen_spectrum(points_b, tol=invariant_tol)
+    actual_gram_spectrum_mismatch = not gram_spectrum_equal
+    sq_cert = _build_mismatch_certificate(
+        _normalized_sq_spectrum(points_a, tol=invariant_tol),
+        _normalized_sq_spectrum(points_b, tol=invariant_tol),
+        invariant_tol,
+    )
+    area_cert = _build_mismatch_certificate(
+        _normalized_area2_spectrum(points_a, tol=invariant_tol),
+        _normalized_area2_spectrum(points_b, tol=invariant_tol),
+        invariant_tol,
+    )
+    gram_cert = _build_mismatch_certificate(
+        _normalized_gram_eigen_spectrum(points_a, tol=invariant_tol),
+        _normalized_gram_eigen_spectrum(points_b, tol=invariant_tol),
+        invariant_tol,
+    )
 
     measured: List[CheckResult] = [
         CheckResult(
@@ -96,6 +179,36 @@ def verify_payload(payload: Dict[str, Any], invariant_tol: float) -> Tuple[bool,
             actual=actual_spectrum_mismatch,
             details=f"spectrum_equal={spectrum_equal}, invariant_tol={invariant_tol}",
         ),
+        CheckResult(
+            name="normalized_area2_spectrum_mismatch",
+            expected=checks_declared.get("normalized_area2_spectrum_mismatch", actual_area_spectrum_mismatch),
+            actual=actual_area_spectrum_mismatch,
+            details=f"area_spectrum_equal={area_spectrum_equal}, invariant_tol={invariant_tol}",
+        ),
+        CheckResult(
+            name="normalized_gram_eigen_spectrum_mismatch",
+            expected=checks_declared.get("normalized_gram_eigen_spectrum_mismatch", actual_gram_spectrum_mismatch),
+            actual=actual_gram_spectrum_mismatch,
+            details=f"gram_spectrum_equal={gram_spectrum_equal}, invariant_tol={invariant_tol}",
+        ),
+        CheckResult(
+            name="normalized_sq_spectrum_certified_mismatch",
+            expected=checks_declared.get("normalized_sq_spectrum_certified_mismatch", bool(sq_cert["certified_mismatch"])),
+            actual=bool(sq_cert["certified_mismatch"]),
+            details=f"lower_bound={sq_cert.get('certified_lower_bound')}, invariant_tol={invariant_tol}",
+        ),
+        CheckResult(
+            name="normalized_area2_spectrum_certified_mismatch",
+            expected=checks_declared.get("normalized_area2_spectrum_certified_mismatch", bool(area_cert["certified_mismatch"])),
+            actual=bool(area_cert["certified_mismatch"]),
+            details=f"lower_bound={area_cert.get('certified_lower_bound')}, invariant_tol={invariant_tol}",
+        ),
+        CheckResult(
+            name="normalized_gram_eigen_spectrum_certified_mismatch",
+            expected=checks_declared.get("normalized_gram_eigen_spectrum_certified_mismatch", bool(gram_cert["certified_mismatch"])),
+            actual=bool(gram_cert["certified_mismatch"]),
+            details=f"lower_bound={gram_cert.get('certified_lower_bound')}, invariant_tol={invariant_tol}",
+        ),
     ]
 
     checks_ok = all(item.expected == item.actual for item in measured)
@@ -103,7 +216,17 @@ def verify_payload(payload: Dict[str, Any], invariant_tol: float) -> Tuple[bool,
     separating = [
         item.name
         for item in measured
-        if item.actual and item.name in {"distance_signature_mismatch", "normalized_sq_spectrum_mismatch"}
+        if item.actual
+        and item.name
+        in {
+            "distance_signature_mismatch",
+            "normalized_sq_spectrum_mismatch",
+            "normalized_area2_spectrum_mismatch",
+            "normalized_gram_eigen_spectrum_mismatch",
+            "normalized_sq_spectrum_certified_mismatch",
+            "normalized_area2_spectrum_certified_mismatch",
+            "normalized_gram_eigen_spectrum_certified_mismatch",
+        }
     ]
     decision_expected = bool(proof.get("decision", False))
     decision_actual = actual_equal_exact and len(separating) > 0

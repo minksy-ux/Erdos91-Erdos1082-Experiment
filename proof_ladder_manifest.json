@@ -1,0 +1,92 @@
+{
+  "version": 91,
+  "certified_rungs": [
+    {
+      "level": 1,
+      "name": "Per-n certificates",
+      "status": "complete",
+      "n_values": [14, 22, 26],
+      "strength": "strict per-n",
+      "artifacts": [
+        "results/erdos91_witness_n14_formal_upgrade_v2.json",
+        "results/erdos91_witness_n22.json",
+        "results/erdos91_witness_n26_formal_upgrade.json"
+      ]
+    },
+    {
+      "level": 2,
+      "name": "Bounded exclusion / local lemmas",
+      "status": "complete",
+      "n_values": [32],
+      "strength": "bounded exclusion",
+      "artifacts": [
+        "results/erdos91_exclusion_n32_v1.json"
+      ]
+    },
+    {
+      "level": 3,
+      "name": "Pattern / recurrence discovery",
+      "status": "partial",
+      "n_values": [14, 26, 32],
+      "strength": "candidate mining",
+      "artifacts": [
+        "results/erdos91_witness_stability_n14.json",
+        "results/erdos91_witness_stability_n26.json",
+        "results/erdos91_witness_stability_appendix.md",
+        "results/proof_search_91_consensus_n32_small.md",
+        "results/conjecture_ladder_91.md",
+        "results/conjecture_ladder_91.json",
+        "results/pattern_ledger_91.md",
+        "results/pattern_ledger_91.json"
+      ]
+    },
+    {
+      "level": 4,
+      "name": "Inductive step for ranges of n",
+      "status": "partial",
+      "n_values": [14, 22, 26, 32, 50],
+      "strength": "bridge lemma",
+      "artifacts": [
+        "BRIDGE_OBLIGATIONS_91.md",
+        "bridge_transfer_schema_91.json",
+        "results/bridge_step_hypothesis_91.json",
+        "results/bridge_step_verification_91.md",
+        "results/bridge_step_hypothesis_91_strict.json",
+        "results/bridge_step_verification_91_strict.md",
+        "results/bridge_step_hypothesis_91_family_flex.json",
+        "results/bridge_step_verification_91_family_flex.md",
+        "results/bridge_transfer_proof_91.json",
+        "results/bridge_window_composition_91.md",
+        "results/bridge_transfer_proof_91_strict.json",
+        "results/bridge_window_composition_91_strict.md",
+        "results/bridge_transfer_proof_91_family_flex.json",
+        "results/bridge_window_composition_91_family_flex.md",
+        "results/bridge_lemma_91.md",
+        "results/bridge_lemma_91.json"
+      ]
+    },
+    {
+      "level": 5,
+      "name": "Asymptotic / density arguments",
+      "status": "partial",
+      "n_values": [22, 32, 50],
+      "strength": "full theorem",
+      "artifacts": [
+        "results/asymptotic_signal_91.md",
+        "results/asymptotic_signal_91.json"
+      ]
+    }
+  ],
+  "gaps": [
+    "inductive bridge between 32 and 100",
+    "density lower bound",
+    "cell-level branch-and-bound pruning",
+    "independent verifier transcript"
+  ],
+  "next_target": "n=50 inductive window",
+  "fingerprints": {
+    "results/erdos91_witness_n14_formal_upgrade_v2.json": "sha256:1d436348a73324b78029fc7294fb466f10c65557ce912cf830016f8a0aa77a96",
+    "results/erdos91_witness_n26_formal_upgrade.json": "sha256:0301b19fa3bf92928a271faff800026ee3eac498aa3e6299ff904bf8d6841abb",
+    "results/erdos91_exclusion_n32_v1.json": "sha256:a37fc77acebd7cbcdc69d370f7d27a0a297308dcc053c528b1ae77ba355625ef"
+  }
+}

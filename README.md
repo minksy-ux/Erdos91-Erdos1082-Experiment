@@ -167,6 +167,7 @@ Generate explicit #91 witness certificates (markdown + JSON sidecar with canonic
 ```bash
 PYTHONPATH=src python generate_91_witness_certificate.py --db-path results/proof_search_91.db --n 26 --shape-tol 0.01 --invariant-tol 1e-10 --out results/erdos91_witness_n26.md --json-out results/erdos91_witness_n26.json
 PYTHONPATH=src python generate_91_witness_certificate.py --db-path results/proof_search_91.db --n 14 --shape-tol 0.01 --invariant-tol 1e-10 --out results/erdos91_witness_n14.md --json-out results/erdos91_witness_n14.json
+PYTHONPATH=src python generate_91_witness_certificate.py --db-path results/erdos_experiments.db --n 22 --shape-tol 0.01 --invariant-tol 1e-10 --out results/erdos91_witness_n22.md --json-out results/erdos91_witness_n22.json
 ```
 
 Generate a multi-n appendix in one command (per-n files plus a combined appendix table):
@@ -181,6 +182,23 @@ Independently verify proof objects from saved certificate JSON files (no search 
 
 ```bash
 PYTHONPATH=src python verify_witness_proof_object.py --inputs results/erdos91_witness_n14.json results/erdos91_witness_n26.json --invariant-tol 1e-10 --strict
+```
+
+Run strict verification across the entire results directory (non-witness JSON files are auto-skipped):
+
+```bash
+PYTHONPATH=src python verify_witness_proof_object.py --inputs results --invariant-tol 1e-10 --strict
+```
+
+Refresh the dynamic proof ladder and conjecture status:
+
+```bash
+python build_ladder_status.py --manifest proof_ladder_manifest.json --out ladder_status.md
+python conjecture_generator_91.py --root . --out results/conjecture_ladder_91.md
+python pattern_ledger_91.py --root . --out results/pattern_ledger_91.md --json-out results/pattern_ledger_91.json
+python bridge_lemma_91.py --root . --out results/bridge_lemma_91.md --json-out results/bridge_lemma_91.json
+python asymptotic_signal_91.py --root . --out results/asymptotic_signal_91.md --json-out results/asymptotic_signal_91.json
+python densify_certificates_91.py --root . --n-values 14,16,18,20,22,24,26,28,30,32 --replay-archive --exact-ranking-all
 ```
 
 Replay from the certified exact archive:
