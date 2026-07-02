@@ -101,7 +101,27 @@ def _build_proof_object(
     if n_plus_2_ok:
         transfer_status = "n+2-certified"
 
-    next_unlock = "certify a witness at n=24 to unlock 22->24 and 24->26"
+    blocked_vertices = sorted(
+        {
+            int(edge.get("source_n", -1))
+            for edge in window.get("blocked_edges", [])
+            if isinstance(edge, dict)
+        }
+        |
+        {
+            int(edge.get("target_n", -1))
+            for edge in window.get("blocked_edges", [])
+            if isinstance(edge, dict)
+        }
+    )
+    blocked_vertices = [n for n in blocked_vertices if n >= 0]
+    if blocked_vertices:
+        next_unlock = (
+            "certify witness transitions covering blocked window vertices: "
+            + ", ".join(str(n) for n in blocked_vertices)
+        )
+    else:
+        next_unlock = "extend certified edges to the next window"
     if n_plus_2_ok:
         next_unlock = "extend n+2 certification to the next window"
 

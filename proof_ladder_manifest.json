@@ -55,12 +55,16 @@
         "results/bridge_step_verification_91_strict.md",
         "results/bridge_step_hypothesis_91_family_flex.json",
         "results/bridge_step_verification_91_family_flex.md",
+        "results/bridge_step_hypothesis_91_family_flex_window2.json",
+        "results/bridge_step_verification_91_family_flex_window2.md",
         "results/bridge_transfer_proof_91.json",
         "results/bridge_window_composition_91.md",
         "results/bridge_transfer_proof_91_strict.json",
         "results/bridge_window_composition_91_strict.md",
         "results/bridge_transfer_proof_91_family_flex.json",
         "results/bridge_window_composition_91_family_flex.md",
+        "results/bridge_transfer_proof_91_family_flex_window2.json",
+        "results/bridge_window_composition_91_family_flex_window2.md",
         "results/bridge_lemma_91.md",
         "results/bridge_lemma_91.json"
       ]

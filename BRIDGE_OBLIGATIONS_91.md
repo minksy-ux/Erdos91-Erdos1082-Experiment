@@ -113,6 +113,13 @@ Dual-track update after targeted n=24 sweeps:
 - Family-flex track (required_core_family=any): certifies 22->24 and 24->26,
 	and therefore certifies n->n+2 on the current tested window.
 
+Conditional theorem track (family-flex) status:
+- Window [22,26] (checked via 22->24 and 24->26): n+2-certified.
+- Window [26,30] (checked via 26->28 and 28->30): blocked because n=28 and n=30
+	currently have witness_found=false at shape_tol=0.006.
+- Therefore the family-flex track is now a formal conditional program with one
+	certified window and one explicit blocker window.
+
 Replay commands for dual-track checks:
 
 ```bash

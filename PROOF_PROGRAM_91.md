@@ -282,6 +282,15 @@ Dual-track bridge results are now also published:
 In this update, strict remains surrogate-certified while family-flex reaches
 n+2-certified on the tested window.
 
+Family-flex extension attempt to the next window is tracked in
+[results/bridge_step_hypothesis_91_family_flex_window2.json](results/bridge_step_hypothesis_91_family_flex_window2.json),
+[results/bridge_step_verification_91_family_flex_window2.md](results/bridge_step_verification_91_family_flex_window2.md),
+[results/bridge_transfer_proof_91_family_flex_window2.json](results/bridge_transfer_proof_91_family_flex_window2.json),
+and
+[results/bridge_window_composition_91_family_flex_window2.md](results/bridge_window_composition_91_family_flex_window2.md).
+Current result: window [26,30] remains blocked because n=28 and n=30 do not yet
+produce witness pairs under the current tighter tolerance checks.
+
 ## Best Available Proof Bundle
 
 For the strongest currently certified proof-style artifact, see
