@@ -5,11 +5,17 @@
       "level": 1,
       "name": "Per-n certificates",
       "status": "complete",
-      "n_values": [14, 22, 26],
+      "n_values": [
+        14,
+        22,
+        26
+      ],
       "strength": "strict per-n",
       "artifacts": [
+        "results/erdos91_witness_n14.json",
         "results/erdos91_witness_n14_formal_upgrade_v2.json",
         "results/erdos91_witness_n22.json",
+        "results/erdos91_witness_n26.json",
         "results/erdos91_witness_n26_formal_upgrade.json"
       ]
     },
@@ -17,7 +23,9 @@
       "level": 2,
       "name": "Bounded exclusion / local lemmas",
       "status": "complete",
-      "n_values": [32],
+      "n_values": [
+        32
+      ],
       "strength": "bounded exclusion",
       "artifacts": [
         "results/erdos91_exclusion_n32_v1.json"
@@ -27,7 +35,11 @@
       "level": 3,
       "name": "Pattern / recurrence discovery",
       "status": "partial",
-      "n_values": [14, 26, 32],
+      "n_values": [
+        14,
+        26,
+        32
+      ],
       "strength": "candidate mining",
       "artifacts": [
         "results/erdos91_witness_stability_n14.json",
@@ -44,7 +56,13 @@
       "level": 4,
       "name": "Inductive step for ranges of n",
       "status": "partial",
-      "n_values": [14, 22, 26, 32, 50],
+      "n_values": [
+        14,
+        22,
+        26,
+        32,
+        50
+      ],
       "strength": "bridge lemma",
       "artifacts": [
         "BRIDGE_OBLIGATIONS_91.md",
@@ -73,7 +91,11 @@
       "level": 5,
       "name": "Asymptotic / density arguments",
       "status": "partial",
-      "n_values": [22, 32, 50],
+      "n_values": [
+        22,
+        32,
+        50
+      ],
       "strength": "full theorem",
       "artifacts": [
         "results/asymptotic_signal_91.md",
