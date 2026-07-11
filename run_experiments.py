@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from statistics import mean, pstdev
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Sequence
 
 import numpy as np
 
@@ -97,6 +97,56 @@ def symmetry_120_seed(n: int, radius: float = 1.0, rng: Optional[np.random.Gener
     return arr
 
 
+def skew_ring_seed(n: int, rng: np.random.Generator) -> np.ndarray:
+    """Break cyclic symmetry with a shear + elliptical distortion of a ring."""
+    base = regular_polygon(n)
+    shear = np.array([[1.0, 0.35], [0.0, 1.0]])
+    ellipse = np.array([[1.15, 0.0], [0.0, 0.82]])
+    points = base @ shear.T @ ellipse.T
+    # Small radial modulation to prevent locked regular signatures.
+    angles = np.arctan2(points[:, 1], points[:, 0])
+    radial = 1.0 + 0.06 * np.sin(3.0 * angles + 0.5)
+    points = points * radial[:, None]
+    points += 0.01 * rng.standard_normal(points.shape)
+    points -= points.mean(axis=0)
+    return points
+
+
+def irrational_spoke_seed(n: int, rng: np.random.Generator) -> np.ndarray:
+    """Interleaved rings with irrational phase to avoid repeated symmetry basins."""
+    phi = (1.0 + math.sqrt(5.0)) / 2.0
+    outer = (n + 1) // 2
+    inner = n - outer
+    points: List[List[float]] = []
+
+    for k in range(outer):
+        theta = 2.0 * np.pi * ((k * phi) % 1.0)
+        points.append([math.cos(theta), math.sin(theta)])
+
+    for k in range(inner):
+        theta = 2.0 * np.pi * (((k + 0.5) * phi) % 1.0)
+        points.append([0.68 * math.cos(theta), 0.68 * math.sin(theta)])
+
+    arr = np.array(points[:n], dtype=float)
+    arr += 0.01 * rng.standard_normal(arr.shape)
+    arr -= arr.mean(axis=0)
+    return arr
+
+
+def alternating_radius_seed(n: int, rng: np.random.Generator) -> np.ndarray:
+    """Near-polygon seed with alternating radii to preserve low objective while breaking similarity."""
+    points = []
+    for k in range(n):
+        theta = 2.0 * np.pi * k / n
+        r = 1.0 if (k % 2 == 0) else 0.78
+        r *= 1.0 + 0.03 * math.sin(5.0 * theta)
+        points.append([r * math.cos(theta), r * math.sin(theta)])
+    arr = np.array(points, dtype=float)
+    arr += 0.008 * rng.standard_normal(arr.shape)
+    arr -= arr.mean(axis=0)
+    return arr
+
+
 def rigidity_seed(n: int, rng: np.random.Generator) -> Optional[np.ndarray]:
     for _ in range(4):
         rg = RigidityGenerator(seed=int(rng.integers(1_000_000)))
@@ -114,7 +164,7 @@ def rigidity_seed(n: int, rng: np.random.Generator) -> Optional[np.ndarray]:
 
 
 def choose_seed(n: int, trial_idx: int, rng: np.random.Generator) -> tuple[np.ndarray, str]:
-    mode = trial_idx % 8
+    mode = trial_idx % 11
     if mode == 0:
         return regular_polygon(n), "regular_polygon"
     if mode == 1:
@@ -133,6 +183,12 @@ def choose_seed(n: int, trial_idx: int, rng: np.random.Generator) -> tuple[np.nd
         return double_circle_seed(n, seed=int(rng.integers(1_000_000))), "double_circle"
     if mode == 6:
         return paired_polygon_seed(n, seed=int(rng.integers(1_000_000))), "paired_polygon"
+    if mode == 7:
+        return skew_ring_seed(n, rng), "skew_ring"
+    if mode == 8:
+        return irrational_spoke_seed(n, rng), "irrational_spoke"
+    if mode == 9:
+        return alternating_radius_seed(n, rng), "alternating_radius"
     return random_uniform_points(n, dim=2, seed=int(rng.integers(1_000_000))), "uniform"
 
 
@@ -180,7 +236,12 @@ def canonical_signature(points: np.ndarray, tol: float = 1e-5) -> str:
     return f"len={len(sig)}:{preview}"
 
 
-def load_best_archive(archive_path: str, n: int, limit: int = 8) -> List[np.ndarray]:
+def load_best_archive(
+    archive_path: str,
+    n: int,
+    limit: int = 8,
+    max_per_signature: int = 2,
+) -> List[np.ndarray]:
     path = Path(archive_path)
     if not path.exists():
         return []
@@ -205,13 +266,14 @@ def load_best_archive(archive_path: str, n: int, limit: int = 8) -> List[np.ndar
         )
     )
 
-    seen: set[str] = set()
+    signature_counts: dict[str, int] = {}
     points_out: List[np.ndarray] = []
     for item in entries:
         key = item.get("signature") or json.dumps(item.get("points", []), sort_keys=True)
-        if key in seen:
+        current = signature_counts.get(key, 0)
+        if current >= max_per_signature:
             continue
-        seen.add(key)
+        signature_counts[key] = current + 1
         points_out.append(np.array(item.get("points", []), dtype=float))
         if len(points_out) >= limit:
             break
@@ -224,6 +286,7 @@ def save_best_archive(
     entries: List[ArchiveEntry],
     existing_entries: Optional[List[dict[str, Any]]] = None,
     max_entries: int = 50,
+    max_per_signature: int = 2,
 ) -> None:
     path = Path(archive_path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -245,7 +308,7 @@ def save_best_archive(
             }
         )
 
-    seen: set[str] = set()
+    signature_counts: dict[str, int] = {}
     deduped: List[dict[str, Any]] = []
     for item in sorted(
         combined,
@@ -257,9 +320,10 @@ def save_best_archive(
         ),
     ):
         key = item.get("signature") or json.dumps(item.get("points", []), sort_keys=True)
-        if key in seen:
+        current = signature_counts.get(key, 0)
+        if current >= max_per_signature:
             continue
-        seen.add(key)
+        signature_counts[key] = current + 1
         deduped.append(item)
         if len(deduped) >= max_entries:
             break
@@ -288,6 +352,63 @@ def family_count(candidates: List[TrialResult], tol: float) -> tuple[int, int, L
 
     signature_families = len(set(signatures))
     return len(reps), signature_families, pairwise, signatures
+
+
+def _reference_family_points(n: int, reference_family: str) -> np.ndarray:
+    if reference_family == "regular_polygon":
+        return regular_polygon(n)
+    if reference_family == "double_circle":
+        return double_circle_seed(n, seed=0)
+    if reference_family == "paired_polygon":
+        return paired_polygon_seed(n, seed=0)
+    if reference_family == "symmetry_120":
+        return symmetry_120_seed(n, rng=np.random.default_rng(0))
+    raise ValueError(f"Unsupported reference family: {reference_family}")
+
+
+def select_diverse_minimizers(
+    minimizers: Sequence[TrialResult],
+    n: int,
+    top_k: int,
+    reference_family: str,
+) -> List[TrialResult]:
+    """Stage-B selection among equal-objective minimizers.
+
+    Stage A is exact objective minimization (already done upstream).
+    Stage B greedily favors candidates far from a known family and from each
+    other to avoid replay collapse into one basin.
+    """
+    if top_k <= 0 or not minimizers:
+        return []
+
+    reference = _reference_family_points(n, reference_family)
+    pool = list(minimizers)
+    base_scores = {
+        id(item): shape_similarity_distance(item.points, reference)
+        for item in pool
+    }
+
+    selected: List[TrialResult] = []
+    remaining = pool
+    while remaining and len(selected) < top_k:
+        best_item: Optional[TrialResult] = None
+        best_score = float("-inf")
+        for candidate in remaining:
+            base = base_scores[id(candidate)]
+            if not selected:
+                score = base
+            else:
+                sep = min(shape_similarity_distance(candidate.points, s.points) for s in selected)
+                score = base + sep
+            if score > best_score:
+                best_score = score
+                best_item = candidate
+        if best_item is None:
+            break
+        selected.append(best_item)
+        remaining = [item for item in remaining if item is not best_item]
+
+    return selected
 
 
 def execute_batch(
@@ -492,14 +613,19 @@ def execute_batch(
             for r in valid_certified
             if r.exact_distinct_sq == best_exact
         ]
-        minimizers = minimizers[: max(2, args.family_top)]
-        families, signature_families, pairwise, signatures = family_count(minimizers, tol=args.family_tol)
+        stage_b = select_diverse_minimizers(
+            minimizers,
+            n=n,
+            top_k=max(2, args.family_top),
+            reference_family=args.stageb_reference,
+        )
+        families, signature_families, pairwise, signatures = family_count(stage_b, tol=args.family_tol)
         db.save_family_evidence(
             run_tag=run_tag,
             n=n,
             exact_distinct_sq=int(best_exact),
             family_tol=args.family_tol,
-            num_candidates=len(minimizers),
+            num_candidates=len(stage_b),
             num_families=families,
             num_signature_families=signature_families,
             signatures=signatures,
@@ -507,11 +633,11 @@ def execute_batch(
         )
         print(
             f"\n#91 non-similarity evidence: best exact={best_exact}, "
-            f"candidates={len(minimizers)}, shape-families={families}, signature-families={signature_families} "
-            f"(tol={args.family_tol})"
+            f"candidates={len(stage_b)}, shape-families={families}, signature-families={signature_families} "
+            f"(tol={args.family_tol}, stageB_ref={args.stageb_reference})"
         )
 
-        for result in minimizers[:archive_size]:
+        for result in stage_b[:archive_size]:
             if result.exact_distinct_sq is None or result.exact_min_distinct is None or result.exact_max_distinct is None:
                 continue
             archive_entries.append(
@@ -537,7 +663,13 @@ def execute_batch(
                 existing = json.loads(archive_file.read_text(encoding="utf-8"))
             except json.JSONDecodeError:
                 existing = []
-        save_best_archive(archive_path, archive_entries, existing_entries=existing, max_entries=archive_size)
+        save_best_archive(
+            archive_path,
+            archive_entries,
+            existing_entries=existing,
+            max_entries=archive_size,
+            max_per_signature=args.archive_max_per_signature,
+        )
 
     best_exact_value = None
     if certified_for_rank and certified_for_rank[0].exact_distinct_sq is not None:
@@ -603,6 +735,19 @@ def main() -> None:
     parser.add_argument("--archive-path", type=str, default="results/best_exact_archive.json", help="JSON archive of certified best candidates")
     parser.add_argument("--archive-size", type=int, default=50, help="maximum number of certified archive entries to retain")
     parser.add_argument("--archive-elite-count", type=int, default=8, help="number of top certified archive candidates used as replay seeds")
+    parser.add_argument(
+        "--archive-max-per-signature",
+        type=int,
+        default=2,
+        help="maximum archived candidates retained per signature family",
+    )
+    parser.add_argument(
+        "--stageb-reference",
+        type=str,
+        default="regular_polygon",
+        choices=["regular_polygon", "double_circle", "paired_polygon", "symmetry_120"],
+        help="known family used by stage-B diversity selection among equal-objective minimizers",
+    )
     parser.add_argument("--replay-archive", action="store_true", help="seed future runs from certified archive survivors")
     parser.add_argument("--archive-only", action="store_true", help="use only archived certified survivors as starting points")
     parser.add_argument(
@@ -636,6 +781,8 @@ def main() -> None:
         parser.error("--archive-size must be >= 1")
     if args.archive_elite_count < 1:
         parser.error("--archive-elite-count must be >= 1")
+    if args.archive_max_per_signature < 1:
+        parser.error("--archive-max-per-signature must be >= 1")
     if args.archive_only and not args.replay_archive:
         parser.error("--archive-only requires --replay-archive")
 
@@ -660,7 +807,12 @@ def main() -> None:
     try:
         for n in n_values:
             if args.replay_archive:
-                archive_points = load_best_archive(args.archive_path, n, limit=archive_pool_limit(args))
+                archive_points = load_best_archive(
+                    args.archive_path,
+                    n,
+                    limit=archive_pool_limit(args),
+                    max_per_signature=args.archive_max_per_signature,
+                )
                 if args.archive_only and not archive_points:
                     parser.error(f"--archive-only requested but no valid archive candidates found in {args.archive_path} for n={n}")
             best_exact_values: List[int] = []
