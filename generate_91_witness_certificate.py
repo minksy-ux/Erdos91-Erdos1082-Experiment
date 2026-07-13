@@ -9,11 +9,17 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+
+ROOT = Path(__file__).resolve().parent
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 from erdos_distance_explorer import shape_similarity_distance, signature_from_points, sort_points_canonical
 

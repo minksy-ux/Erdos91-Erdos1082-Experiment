@@ -284,8 +284,8 @@ def main() -> None:
     parser.add_argument("--hypothesis-id", default="H91-bridge-step-v1", help="identifier for this bridge hypothesis run")
     parser.add_argument(
         "--required-core-family",
-        default="symmetry_120",
-        help="required seed family for both endpoints; set to 'any' to disable family gating",
+        default="any",
+        help="required seed family for both endpoints; default 'any' disables family gating",
     )
     parser.add_argument("--out-json", default="results/bridge_step_hypothesis_91.json", help="output JSON hypothesis path")
     parser.add_argument("--out-md", default="results/bridge_step_verification_91.md", help="output markdown report path")

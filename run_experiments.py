@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,11 @@ from statistics import mean, pstdev
 from typing import Any, List, Optional, Sequence
 
 import numpy as np
+
+ROOT = Path(__file__).resolve().parent
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 from erdos_distance_explorer import (
     count_distinct_distances,

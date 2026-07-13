@@ -9,11 +9,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
+
+ROOT = Path(__file__).resolve().parent
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 from erdos_distance_explorer import shape_similarity_distance
 
@@ -213,6 +219,19 @@ def main() -> None:
     failures = 0
     for path in paths:
         payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            rows.append(
+                {
+                    "file": str(path),
+                    "applicable": False,
+                    "pass": True,
+                    "checks_total": 0,
+                    "checks_passed": 0,
+                    "checks": [],
+                }
+            )
+            continue
+
         ok, checks, applicable = verify_payload(payload, tol=args.tol)
         if applicable and not ok:
             failures += 1

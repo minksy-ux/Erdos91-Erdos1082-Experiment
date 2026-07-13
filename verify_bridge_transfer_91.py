@@ -57,6 +57,8 @@ def _build_window_composition(
 
     if certified_edges and anchor_support["bounded_exclusion_gap_positive"] and anchor_support["consensus_plateau_fixed"]:
         status = "surrogate-certified"
+    elif certified_edges:
+        status = "edge-certified-anchor-pending"
     else:
         status = "blocked"
 
