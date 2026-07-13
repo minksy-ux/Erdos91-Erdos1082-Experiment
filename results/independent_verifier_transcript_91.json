@@ -1,0 +1,272 @@
+{
+  "results": [
+    {
+      "file": "results/asymptotic_signal_91.json",
+      "applicable": false,
+      "pass": true,
+      "checks_total": 0,
+      "checks_passed": 0,
+      "checks": []
+    },
+    {
+      "file": "results/bridge_step_hypothesis_91.json",
+      "applicable": false,
+      "pass": true,
+      "checks_total": 0,
+      "checks_passed": 0,
+      "checks": []
+    },
+    {
+      "file": "results/bridge_step_hypothesis_91_window_34_38_exception36.json",
+      "applicable": false,
+      "pass": true,
+      "checks_total": 0,
+      "checks_passed": 0,
+      "checks": []
+    },
+    {
+      "file": "results/bridge_transfer_proof_91.json",
+      "applicable": false,
+      "pass": true,
+      "checks_total": 0,
+      "checks_passed": 0,
+      "checks": []
+    },
+    {
+      "file": "results/bridge_transfer_proof_91_window_34_38_exception36.json",
+      "applicable": false,
+      "pass": true,
+      "checks_total": 0,
+      "checks_passed": 0,
+      "checks": []
+    },
+    {
+      "file": "results/erdos91_witness_n22.json",
+      "applicable": true,
+      "pass": true,
+      "checks_total": 7,
+      "checks_passed": 7,
+      "checks": [
+        {
+          "name": "equal_exact_objective",
+          "passed": true,
+          "details": "exact_a=231, exact_b=231"
+        },
+        {
+          "name": "shape_distance_separated",
+          "passed": true,
+          "details": "shape_distance=0.517232, tol=0.010000"
+        },
+        {
+          "name": "independent_procrustes_separated",
+          "passed": true,
+          "details": "procrustes=0.517232, tol=0.010000"
+        },
+        {
+          "name": "distance_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=231, len_b=231"
+        },
+        {
+          "name": "radial_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=22, len_b=22"
+        },
+        {
+          "name": "area_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=1540, len_b=1540"
+        },
+        {
+          "name": "independent_decision",
+          "passed": true,
+          "details": "decision = equal_exact_objective AND any(independent fingerprint mismatch)"
+        }
+      ]
+    },
+    {
+      "file": "results/erdos91_witness_n24.json",
+      "applicable": true,
+      "pass": true,
+      "checks_total": 7,
+      "checks_passed": 7,
+      "checks": [
+        {
+          "name": "equal_exact_objective",
+          "passed": true,
+          "details": "exact_a=276, exact_b=276"
+        },
+        {
+          "name": "shape_distance_separated",
+          "passed": true,
+          "details": "shape_distance=0.595730, tol=0.010000"
+        },
+        {
+          "name": "independent_procrustes_separated",
+          "passed": true,
+          "details": "procrustes=0.595730, tol=0.010000"
+        },
+        {
+          "name": "distance_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=276, len_b=276"
+        },
+        {
+          "name": "radial_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=24, len_b=24"
+        },
+        {
+          "name": "area_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=2024, len_b=2024"
+        },
+        {
+          "name": "independent_decision",
+          "passed": true,
+          "details": "decision = equal_exact_objective AND any(independent fingerprint mismatch)"
+        }
+      ]
+    },
+    {
+      "file": "results/erdos91_witness_n26.json",
+      "applicable": true,
+      "pass": true,
+      "checks_total": 7,
+      "checks_passed": 7,
+      "checks": [
+        {
+          "name": "equal_exact_objective",
+          "passed": true,
+          "details": "exact_a=325, exact_b=325"
+        },
+        {
+          "name": "shape_distance_separated",
+          "passed": true,
+          "details": "shape_distance=0.555643, tol=0.010000"
+        },
+        {
+          "name": "independent_procrustes_separated",
+          "passed": true,
+          "details": "procrustes=0.555643, tol=0.010000"
+        },
+        {
+          "name": "distance_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=325, len_b=325"
+        },
+        {
+          "name": "radial_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=26, len_b=26"
+        },
+        {
+          "name": "area_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=2600, len_b=2600"
+        },
+        {
+          "name": "independent_decision",
+          "passed": true,
+          "details": "decision = equal_exact_objective AND any(independent fingerprint mismatch)"
+        }
+      ]
+    },
+    {
+      "file": "results/erdos91_witness_n34.json",
+      "applicable": true,
+      "pass": true,
+      "checks_total": 7,
+      "checks_passed": 7,
+      "checks": [
+        {
+          "name": "equal_exact_objective",
+          "passed": true,
+          "details": "exact_a=561, exact_b=561"
+        },
+        {
+          "name": "shape_distance_separated",
+          "passed": true,
+          "details": "shape_distance=0.518588, tol=0.010000"
+        },
+        {
+          "name": "independent_procrustes_separated",
+          "passed": true,
+          "details": "procrustes=0.518588, tol=0.010000"
+        },
+        {
+          "name": "distance_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=561, len_b=561"
+        },
+        {
+          "name": "radial_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=34, len_b=34"
+        },
+        {
+          "name": "area_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=5984, len_b=5984"
+        },
+        {
+          "name": "independent_decision",
+          "passed": true,
+          "details": "decision = equal_exact_objective AND any(independent fingerprint mismatch)"
+        }
+      ]
+    },
+    {
+      "file": "results/erdos91_witness_n38.json",
+      "applicable": true,
+      "pass": true,
+      "checks_total": 7,
+      "checks_passed": 7,
+      "checks": [
+        {
+          "name": "equal_exact_objective",
+          "passed": true,
+          "details": "exact_a=700, exact_b=700"
+        },
+        {
+          "name": "shape_distance_separated",
+          "passed": true,
+          "details": "shape_distance=0.494979, tol=0.010000"
+        },
+        {
+          "name": "independent_procrustes_separated",
+          "passed": true,
+          "details": "procrustes=0.494979, tol=0.010000"
+        },
+        {
+          "name": "distance_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=703, len_b=703"
+        },
+        {
+          "name": "radial_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=38, len_b=38"
+        },
+        {
+          "name": "area_fingerprint_mismatch",
+          "passed": true,
+          "details": "len_a=8436, len_b=8436"
+        },
+        {
+          "name": "independent_decision",
+          "passed": true,
+          "details": "decision = equal_exact_objective AND any(independent fingerprint mismatch)"
+        }
+      ]
+    },
+    {
+      "file": "results/independent_verifier_transcript_91.json",
+      "applicable": false,
+      "pass": true,
+      "checks_total": 0,
+      "checks_passed": 0,
+      "checks": []
+    }
+  ]
+}

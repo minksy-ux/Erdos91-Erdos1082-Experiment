@@ -1,0 +1,191 @@
+{
+  "schema_id": "bridge-transfer-proof-91-v1",
+  "proof_object_id": "bridge-transfer-proof-91-v1",
+  "hypothesis_source": "H91-bridge-step-v2-exception36",
+  "required_hypotheses": {
+    "H_witness": {
+      "witness_found": true,
+      "non_similarity_decision": true,
+      "required_separating_checks": [
+        "distance_signature_mismatch",
+        "normalized_sq_spectrum_mismatch",
+        "normalized_area2_spectrum_mismatch",
+        "normalized_gram_eigen_spectrum_mismatch"
+      ],
+      "required_core_family": null,
+      "exceptional_indices": [
+        36
+      ],
+      "exception_policy": "endpoint witness requirements waived for exceptional indices"
+    },
+    "H_anchor": {
+      "bounded_exclusion_gap_positive": true,
+      "consensus_plateau_fixed": true
+    }
+  },
+  "verified_transitions": [
+    {
+      "source_n": 34,
+      "target_n": 36,
+      "source_path": "results/erdos91_witness_n34.json",
+      "target_path": null,
+      "status": "blocked",
+      "blockers": [
+        "missing target witness file for n=36"
+      ],
+      "source_witness": false,
+      "target_witness": false,
+      "source_best_exact": null,
+      "target_best_exact": null,
+      "source_common_families": [],
+      "target_common_families": [],
+      "source_required_checks_present": false,
+      "target_required_checks_present": false,
+      "source_decision": false,
+      "target_decision": false,
+      "source_exception_applied": false,
+      "target_exception_applied": false
+    },
+    {
+      "source_n": 36,
+      "target_n": 38,
+      "source_path": null,
+      "target_path": "results/erdos91_witness_n38.json",
+      "status": "blocked",
+      "blockers": [
+        "missing source witness file for n=36"
+      ],
+      "source_witness": false,
+      "target_witness": false,
+      "source_best_exact": null,
+      "target_best_exact": null,
+      "source_common_families": [],
+      "target_common_families": [],
+      "source_required_checks_present": false,
+      "target_required_checks_present": false,
+      "source_decision": false,
+      "target_decision": false,
+      "source_exception_applied": false,
+      "target_exception_applied": false
+    },
+    {
+      "source_n": 34,
+      "target_n": 38,
+      "source_path": "results/erdos91_witness_n34.json",
+      "target_path": "results/erdos91_witness_n38.json",
+      "status": "certified",
+      "blockers": [],
+      "source_witness": true,
+      "target_witness": true,
+      "source_best_exact": 561,
+      "target_best_exact": 700,
+      "source_common_families": [
+        "synthetic"
+      ],
+      "target_common_families": [
+        "synthetic"
+      ],
+      "source_required_checks_present": true,
+      "target_required_checks_present": true,
+      "source_decision": true,
+      "target_decision": true,
+      "source_exception_applied": false,
+      "target_exception_applied": false
+    }
+  ],
+  "window_composition": {
+    "window_start": 34,
+    "window_mid": 38,
+    "window_end": 42,
+    "status": "surrogate-certified",
+    "certified_edges": [
+      {
+        "source_n": 34,
+        "target_n": 38,
+        "source_path": "results/erdos91_witness_n34.json",
+        "target_path": "results/erdos91_witness_n38.json",
+        "status": "certified",
+        "blockers": [],
+        "source_witness": true,
+        "target_witness": true,
+        "source_best_exact": 561,
+        "target_best_exact": 700,
+        "source_common_families": [
+          "synthetic"
+        ],
+        "target_common_families": [
+          "synthetic"
+        ],
+        "source_required_checks_present": true,
+        "target_required_checks_present": true,
+        "source_decision": true,
+        "target_decision": true,
+        "source_exception_applied": false,
+        "target_exception_applied": false
+      }
+    ],
+    "blocked_edges": [
+      {
+        "source_n": 34,
+        "target_n": 36,
+        "source_path": "results/erdos91_witness_n34.json",
+        "target_path": null,
+        "status": "blocked",
+        "blockers": [
+          "missing target witness file for n=36"
+        ],
+        "source_witness": false,
+        "target_witness": false,
+        "source_best_exact": null,
+        "target_best_exact": null,
+        "source_common_families": [],
+        "target_common_families": [],
+        "source_required_checks_present": false,
+        "target_required_checks_present": false,
+        "source_decision": false,
+        "target_decision": false,
+        "source_exception_applied": false,
+        "target_exception_applied": false
+      },
+      {
+        "source_n": 36,
+        "target_n": 38,
+        "source_path": null,
+        "target_path": "results/erdos91_witness_n38.json",
+        "status": "blocked",
+        "blockers": [
+          "missing source witness file for n=36"
+        ],
+        "source_witness": false,
+        "target_witness": false,
+        "source_best_exact": null,
+        "target_best_exact": null,
+        "source_common_families": [],
+        "target_common_families": [],
+        "source_required_checks_present": false,
+        "target_required_checks_present": false,
+        "source_decision": false,
+        "target_decision": false,
+        "source_exception_applied": false,
+        "target_exception_applied": false
+      }
+    ],
+    "anchor_support": {
+      "bounded_exclusion_gap_positive": true,
+      "consensus_plateau_fixed": true
+    }
+  },
+  "conclusion": {
+    "transfer_lemma_status": "surrogate-certified",
+    "n_plus_2_status": "blocked",
+    "surrogate_step_status": "certified",
+    "exception_policy_active": false,
+    "n_plus_2_exception_usage": false,
+    "next_required_unlock": "certify witness transitions covering blocked window vertices: 34, 36, 38"
+  },
+  "generated_from": [
+    "results/bridge_step_hypothesis_91_window_34_38_exception36.json",
+    "results/asymptotic_signal_91.json",
+    "bridge_transfer_schema_91.json"
+  ]
+}

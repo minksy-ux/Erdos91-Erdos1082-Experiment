@@ -1,0 +1,118 @@
+{
+  "hypothesis_id": "H91-bridge-step-v2-exception36",
+  "statement": "If H(n) holds and bridge prerequisites are certified, then H(n') holds for the tested finite transition n->n'.",
+  "H_n_definition": {
+    "witness_found": true,
+    "non_similarity_decision": true,
+    "required_separating_checks": [
+      "distance_signature_mismatch",
+      "normalized_sq_spectrum_mismatch",
+      "normalized_area2_spectrum_mismatch",
+      "normalized_gram_eigen_spectrum_mismatch"
+    ],
+    "required_core_family": null,
+    "exceptional_indices": [
+      36
+    ],
+    "exception_policy": "endpoint witness requirements waived for exceptional indices"
+  },
+  "tested_transitions": [
+    {
+      "source_n": 34,
+      "target_n": 36,
+      "source_path": "results/erdos91_witness_n34.json",
+      "target_path": null,
+      "status": "blocked",
+      "blockers": [
+        "missing target witness file for n=36"
+      ],
+      "source_witness": false,
+      "target_witness": false,
+      "source_best_exact": null,
+      "target_best_exact": null,
+      "source_common_families": [],
+      "target_common_families": [],
+      "source_required_checks_present": false,
+      "target_required_checks_present": false,
+      "source_decision": false,
+      "target_decision": false,
+      "source_exception_applied": false,
+      "target_exception_applied": false
+    },
+    {
+      "source_n": 36,
+      "target_n": 38,
+      "source_path": null,
+      "target_path": "results/erdos91_witness_n38.json",
+      "status": "blocked",
+      "blockers": [
+        "missing source witness file for n=36"
+      ],
+      "source_witness": false,
+      "target_witness": false,
+      "source_best_exact": null,
+      "target_best_exact": null,
+      "source_common_families": [],
+      "target_common_families": [],
+      "source_required_checks_present": false,
+      "target_required_checks_present": false,
+      "source_decision": false,
+      "target_decision": false,
+      "source_exception_applied": false,
+      "target_exception_applied": false
+    },
+    {
+      "source_n": 34,
+      "target_n": 38,
+      "source_path": "results/erdos91_witness_n34.json",
+      "target_path": "results/erdos91_witness_n38.json",
+      "status": "certified",
+      "blockers": [],
+      "source_witness": true,
+      "target_witness": true,
+      "source_best_exact": 561,
+      "target_best_exact": 700,
+      "source_common_families": [
+        "synthetic"
+      ],
+      "target_common_families": [
+        "synthetic"
+      ],
+      "source_required_checks_present": true,
+      "target_required_checks_present": true,
+      "source_decision": true,
+      "target_decision": true,
+      "source_exception_applied": false,
+      "target_exception_applied": false
+    }
+  ],
+  "pilot_transition": {
+    "source_n": 34,
+    "target_n": 38,
+    "source_path": "results/erdos91_witness_n34.json",
+    "target_path": "results/erdos91_witness_n38.json",
+    "status": "certified",
+    "blockers": [],
+    "source_witness": true,
+    "target_witness": true,
+    "source_best_exact": 561,
+    "target_best_exact": 700,
+    "source_common_families": [
+      "synthetic"
+    ],
+    "target_common_families": [
+      "synthetic"
+    ],
+    "source_required_checks_present": true,
+    "target_required_checks_present": true,
+    "source_decision": true,
+    "target_decision": true,
+    "source_exception_applied": false,
+    "target_exception_applied": false
+  },
+  "pilot_status": "certified",
+  "notes": [
+    "A certified pilot transition is a finite bridge witness, not yet a universal n->n+2 theorem.",
+    "Blocked transitions identify concrete data gaps for the next densification target."
+  ]
+}
