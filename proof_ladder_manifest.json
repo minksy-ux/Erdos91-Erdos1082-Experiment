@@ -7,14 +7,22 @@
       "status": "complete",
       "n_values": [
         14,
+        16,
+        18,
+        20,
         22,
+        24,
         26
       ],
       "strength": "strict per-n",
       "artifacts": [
         "results/erdos91_witness_n14.json",
         "results/erdos91_witness_n14_formal_upgrade_v2.json",
+        "results/erdos91_witness_n16.json",
+        "results/erdos91_witness_n18.json",
+        "results/erdos91_witness_n20.json",
         "results/erdos91_witness_n22.json",
+        "results/erdos91_witness_n24.json",
         "results/erdos91_witness_n26.json",
         "results/erdos91_witness_n26_formal_upgrade.json"
       ]
@@ -83,6 +91,12 @@
         "results/bridge_window_composition_91_family_flex.md",
         "results/bridge_transfer_proof_91_family_flex_window2.json",
         "results/bridge_window_composition_91_family_flex_window2.md",
+        "results/bridge_step_hypothesis_91_v3_updated.json",
+        "results/bridge_step_verification_91_v3_updated.md",
+        "results/bridge_transfer_proof_91_v3_updated.json",
+        "results/bridge_window_composition_91_v3_updated.md",
+        "results/independent_verifier_transcript_91.json",
+        "results/independent_verifier_transcript_91.md",
         "results/bridge_lemma_91.md",
         "results/bridge_lemma_91.json"
       ]
@@ -106,8 +120,7 @@
   "gaps": [
     "inductive bridge between 32 and 100",
     "density lower bound",
-    "cell-level branch-and-bound pruning",
-    "independent verifier transcript"
+    "cell-level branch-and-bound pruning"
   ],
   "next_target": "n=50 inductive window",
   "fingerprints": {

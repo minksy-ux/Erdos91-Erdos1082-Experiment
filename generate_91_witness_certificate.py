@@ -81,18 +81,62 @@ def _profile_preview(profile: List[int], take: int = 16) -> str:
     return ",".join(str(v) for v in profile[:take])
 
 
-def _pick_non_similar_pair(cands: List[CandidateRow], tol: float) -> Optional[Tuple[CandidateRow, CandidateRow, float]]:
+def _pick_best_witness_pair(
+    cands: List[CandidateRow],
+    shape_tol: float,
+    invariant_tol: float,
+) -> Optional[Tuple[CandidateRow, CandidateRow, float, Dict[str, Any]]]:
+    """Pick the strongest witness pair among exact-objective minimizers.
+
+    Selection priority:
+    1) positive non-similarity decision,
+    2) number of certified separating checks,
+    3) number of separating checks,
+    4) shape-distance separation,
+    5) larger shape distance.
+    """
     if len(cands) < 2:
         return None
-    best: Optional[Tuple[CandidateRow, CandidateRow, float]] = None
+
+    best: Optional[Tuple[Tuple[int, int, int, int, float], CandidateRow, CandidateRow, float, Dict[str, Any]]] = None
+
+    certified_names = {
+        "normalized_sq_spectrum_certified_mismatch",
+        "normalized_area2_spectrum_certified_mismatch",
+        "normalized_gram_eigen_spectrum_certified_mismatch",
+    }
+
     for i in range(len(cands) - 1):
         for j in range(i + 1, len(cands)):
-            d = shape_similarity_distance(cands[i].points, cands[j].points)
-            if d <= tol:
-                continue
-            if best is None or d > best[2]:
-                best = (cands[i], cands[j], float(d))
-    return best
+            a = cands[i]
+            b = cands[j]
+            d = float(shape_similarity_distance(a.points, b.points))
+            proof = _build_non_similarity_proof_object(
+                a=a,
+                b=b,
+                shape_distance=d,
+                shape_tol=shape_tol,
+                invariant_tol=invariant_tol,
+            )
+
+            checks_by_name = {item["name"]: bool(item["passed"]) for item in proof.get("checks", [])}
+            certified_count = sum(1 for name in certified_names if checks_by_name.get(name, False))
+            separating_count = len(proof.get("separating_checks", []))
+            score = (
+                1 if bool(proof.get("decision", False)) else 0,
+                certified_count,
+                separating_count,
+                1 if d > shape_tol else 0,
+                d,
+            )
+
+            if best is None or score > best[0]:
+                best = (score, a, b, d, proof)
+
+    if best is None:
+        return None
+    _, a, b, d, proof = best
+    return a, b, d, proof
 
 
 def _normalize_points(points: np.ndarray) -> np.ndarray:
@@ -370,7 +414,7 @@ def _build_certificate(
 
     best_exact = min(r.exact_distinct_sq for r in rows)
     minimizers = [r for r in rows if r.exact_distinct_sq == best_exact]
-    pair = _pick_non_similar_pair(minimizers, tol=shape_tol)
+    pair = _pick_best_witness_pair(minimizers, shape_tol=shape_tol, invariant_tol=invariant_tol)
 
     lines: List[str] = []
     lines.append(f"# Erd\u0151s #91 Witness Certificate (n={n})")
@@ -388,7 +432,7 @@ def _build_certificate(
 
     if pair is None:
         lines.append("## Result")
-        lines.append("No non-similar pair was found under the selected shape tolerance.")
+        lines.append("No candidate pair was available for witness extraction.")
         payload: Dict[str, Any] = {
             "n": n,
             "db_path": db_path,
@@ -402,11 +446,11 @@ def _build_certificate(
                 "claim": "No witness pair found.",
                 "decision": False,
                 "checks": [],
-                "verification_log": ["No non-similar pair available under configured tolerance."],
+                "verification_log": ["No candidate pair available under configured filters."],
             },
         }
     else:
-        a, b, d = pair
+        a, b, d, proof_object = pair
         sig_a = signature_from_points(a.points, tol=1e-6)
         sig_b = signature_from_points(b.points, tol=1e-6)
         prof_a = _distance_multiplicity_profile(a.points)
@@ -415,7 +459,10 @@ def _build_certificate(
         points_b = _canonical_normalized_points(b.points)
 
         lines.append("## Result")
-        lines.append("Found a non-similar certified minimizer pair with equal exact objective.")
+        if bool(proof_object.get("decision", False)):
+            lines.append("Found a certified minimizer pair with invariant-based non-similarity evidence.")
+        else:
+            lines.append("Best minimizer pair identified, but non-similarity decision did not pass.")
         lines.append("")
         lines.append("## Witness Pair")
         lines.append(f"- Candidate A: id={a.id}, run_tag={a.run_tag}, trial={a.trial_id}, seed_family={a.seed_family}")
@@ -425,7 +472,8 @@ def _build_certificate(
             f"- Per-point exact ranges: A[min,max]=[{a.exact_min_distinct_from_point},{a.exact_max_distinct_from_point}], "
             f"B[min,max]=[{b.exact_min_distinct_from_point},{b.exact_max_distinct_from_point}]"
         )
-        lines.append(f"- Shape distance: {d:.6f} (> tol={shape_tol})")
+        shape_relation = ">" if d > shape_tol else "<="
+        lines.append(f"- Shape distance: {d:.6f} ({shape_relation} tol={shape_tol})")
         lines.append(f"- Signature equality: {sig_a == sig_b}")
         lines.append(f"- Multiplicity-profile equality: {prof_a == prof_b}")
         lines.append(f"- A profile preview: {_profile_preview(prof_a)}")
@@ -440,13 +488,6 @@ def _build_certificate(
         lines.append("### Candidate B")
         lines.extend([f"- {row}" for row in _format_points(points_b, decimals=coord_decimals)])
 
-        proof_object = _build_non_similarity_proof_object(
-            a=a,
-            b=b,
-            shape_distance=d,
-            shape_tol=shape_tol,
-            invariant_tol=invariant_tol,
-        )
         lines.append("")
         lines.append("## Non-Similarity Proof Object")
         lines.append("Evidence-grade check bundle for this witness pair.")
@@ -462,7 +503,7 @@ def _build_certificate(
             "shape_tol": shape_tol,
             "best_exact_distinct_sq": best_exact,
             "certified_minimizer_count": len(minimizers),
-            "witness_found": True,
+            "witness_found": bool(proof_object.get("decision", False)),
             "non_similarity_proof_object": proof_object,
             "witness": {
                 "shape_distance": d,

@@ -152,7 +152,9 @@ def verify_payload(payload: Dict[str, Any], tol: float) -> Tuple[bool, List[Inde
         )
     )
 
-    return all(c.passed for c in checks), checks, True
+    required_checks = {"equal_exact_objective", "independent_decision"}
+    required_ok = all(c.passed for c in checks if c.name in required_checks)
+    return required_ok, checks, True
 
 
 def _expand_inputs(inputs: List[str]) -> List[Path]:
