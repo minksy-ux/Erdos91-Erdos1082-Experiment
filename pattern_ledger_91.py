@@ -32,21 +32,32 @@ def _load_json_list(path: Path) -> List[Dict[str, Any]]:
 
 
 def _witness_payloads(root: Path) -> List[Tuple[str, Dict[str, Any]]]:
-    paths = [
-        "results/erdos91_witness_n14.json",
-        "results/erdos91_witness_n22.json",
-        "results/erdos91_witness_n26.json",
-        "results/erdos91_witness_n14_formal_upgrade_v2.json",
-        "results/erdos91_witness_n26_formal_upgrade.json",
-        "results/erdos91_witness_stability_n14.json",
-        "results/erdos91_witness_stability_n26.json",
-    ]
-    payloads: List[Tuple[str, Dict[str, Any]]] = []
-    for rel_path in paths:
-        payload = _load_json(root / rel_path)
-        if isinstance(payload, dict) and payload.get("witness_found"):
-            payloads.append((rel_path, payload))
-    return payloads
+    best_by_n: Dict[int, Tuple[Tuple[int, int, int, int], str, Dict[str, Any]]] = {}
+    for path in sorted((root / "results").glob("erdos91_witness_n*.json")):
+        payload = _load_json(path)
+        if not isinstance(payload, dict) or not payload.get("witness_found"):
+            continue
+
+        raw_n = payload.get("n")
+        try:
+            n = int(raw_n)
+        except Exception:
+            continue
+
+        proof = payload.get("non_similarity_proof_object", {})
+        checks = proof.get("checks", [])
+        passed = sum(1 for check in checks if check.get("passed")) if isinstance(checks, list) else 0
+        total = len(checks) if isinstance(checks, list) else 0
+        decision = 1 if bool(proof.get("decision", False)) else 0
+        canonical_name = 1 if path.name == f"erdos91_witness_n{n}.json" else 0
+        score = (decision, passed, total, canonical_name)
+
+        rel_path = f"results/{path.name}"
+        existing = best_by_n.get(n)
+        if existing is None or score > existing[0]:
+            best_by_n[n] = (score, rel_path, payload)
+
+    return [(rel_path, payload) for _, rel_path, payload in [best_by_n[n] for n in sorted(best_by_n)]]
 
 
 def _separating_checks(payload: Dict[str, Any]) -> List[str]:
@@ -186,7 +197,13 @@ def build_report(root: Path) -> Tuple[str, Dict[str, Any]]:
             lines.append(
                 f"| {name} | {record.get('aggregate_best_exact_sq', '-')} | {record.get('witness_runs', '-')}/{record.get('total_runs', '-')} | {record.get('total_runs', '-')} | {record.get('aggregate_num_families', '-')} | {record.get('aggregate_num_signature_families', '-')} |"
             )
-        aggregate_best_values = sorted({value for record in consensus for value in record.get("run_best_values", [])})
+        aggregate_best_values = sorted(
+            {
+                int(record.get("aggregate_best_exact_sq"))
+                for record in consensus
+                if record.get("aggregate_best_exact_sq") is not None
+            }
+        )
         aggregate_signature_counts = sorted({value for record in consensus for value in record.get("run_signature_counts", [])})
         lines.append("")
         lines.append(f"- Consensus best exact values observed at n=32: {aggregate_best_values}.")

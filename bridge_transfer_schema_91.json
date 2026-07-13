@@ -48,6 +48,8 @@
     "transfer_lemma_status",
     "n_plus_2_status",
     "surrogate_step_status",
+    "exception_policy_active",
+    "n_plus_2_exception_usage",
     "next_required_unlock"
   ]
 }

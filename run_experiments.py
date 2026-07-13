@@ -678,8 +678,10 @@ def execute_batch(
         )
 
     best_exact_value = None
-    if certified_for_rank and certified_for_rank[0].exact_distinct_sq is not None:
-        best_exact_value = certified_for_rank[0].exact_distinct_sq
+    if valid_certified:
+        best_exact_value = min(
+            r.exact_distinct_sq for r in valid_certified if r.exact_distinct_sq is not None
+        )
     return results, best_exact_value
 
 

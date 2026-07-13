@@ -32,15 +32,35 @@ def _load_json_list(path: Path) -> List[Dict[str, Any]]:
 
 
 def _candidate_paths(root: Path) -> List[Path]:
-    return [
-        root / "results" / "erdos91_witness_n14.json",
-        root / "results" / "erdos91_witness_n22.json",
-        root / "results" / "erdos91_witness_n26.json",
-        root / "results" / "erdos91_witness_n14_formal_upgrade_v2.json",
-        root / "results" / "erdos91_witness_n26_formal_upgrade.json",
-        root / "results" / "erdos91_witness_stability_n14.json",
-        root / "results" / "erdos91_witness_stability_n26.json",
-    ]
+    return sorted((root / "results").glob("erdos91_witness_n*.json"))
+
+
+def _best_payloads_by_n(paths: List[Path]) -> List[Tuple[Path, Dict[str, Any]]]:
+    best: Dict[int, Tuple[Tuple[int, int, int, int], Path, Dict[str, Any]]] = {}
+    for path in paths:
+        payload = _load_json(path)
+        if not isinstance(payload, dict) or not payload.get("witness_found"):
+            continue
+
+        raw_n = payload.get("n")
+        try:
+            n = int(raw_n)
+        except Exception:
+            continue
+
+        proof = payload.get("non_similarity_proof_object", {})
+        checks = proof.get("checks", [])
+        passed = sum(1 for check in checks if check.get("passed")) if isinstance(checks, list) else 0
+        total = len(checks) if isinstance(checks, list) else 0
+        decision = 1 if bool(proof.get("decision", False)) else 0
+        canonical_name = 1 if path.name == f"erdos91_witness_n{n}.json" else 0
+        score = (decision, passed, total, canonical_name)
+
+        existing = best.get(n)
+        if existing is None or score > existing[0]:
+            best[n] = (score, path, payload)
+
+    return [(best[n][1], best[n][2]) for n in sorted(best)]
 
 
 def _family_set(payload: Dict[str, Any]) -> List[str]:
@@ -85,11 +105,7 @@ def _format_list(values: Iterable[str]) -> str:
 
 def build_report(root: Path) -> Tuple[str, Dict[str, Any]]:
     witness_paths = _candidate_paths(root)
-    witness_payloads: List[Tuple[Path, Dict[str, Any]]] = []
-    for path in witness_paths:
-        payload = _load_json(path)
-        if isinstance(payload, dict) and payload.get("witness_found"):
-            witness_payloads.append((path, payload))
+    witness_payloads = _best_payloads_by_n(witness_paths)
 
     exclusion = _load_json(root / "results" / "erdos91_exclusion_n32_v1.json") or {}
     consensus = _consensus_records(root)

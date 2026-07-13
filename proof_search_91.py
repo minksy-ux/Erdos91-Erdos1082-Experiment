@@ -284,6 +284,19 @@ def main() -> None:
     parser.add_argument("--archive-path", type=str, default="results/best_exact_archive.json", help="JSON archive of certified best candidates")
     parser.add_argument("--archive-size", type=int, default=50, help="maximum number of certified archive entries to retain")
     parser.add_argument("--archive-elite-count", type=int, default=8, help="number of top archive candidates used as replay seeds")
+    parser.add_argument(
+        "--archive-max-per-signature",
+        type=int,
+        default=2,
+        help="maximum archived candidates retained per signature family",
+    )
+    parser.add_argument(
+        "--stageb-reference",
+        type=str,
+        default="regular_polygon",
+        choices=["regular_polygon", "double_circle", "paired_polygon", "symmetry_120"],
+        help="known family used by stage-B diversity selection among equal-objective minimizers",
+    )
     parser.add_argument("--replay-archive", action="store_true", help="seed future runs from certified archive survivors")
     parser.add_argument("--archive-only", action="store_true", help="use only archived certified survivors as starting points")
     parser.add_argument("--exact-ranking-all", action="store_true", help="certify all trials and rank by exact certified distance count")
@@ -308,6 +321,8 @@ def main() -> None:
         parser.error("--archive-size must be >= 1")
     if args.archive_elite_count < 1:
         parser.error("--archive-elite-count must be >= 1")
+    if args.archive_max_per_signature < 1:
+        parser.error("--archive-max-per-signature must be >= 1")
     if args.archive_only and not args.replay_archive:
         parser.error("--archive-only requires --replay-archive")
     args.exact_ranking_all = True

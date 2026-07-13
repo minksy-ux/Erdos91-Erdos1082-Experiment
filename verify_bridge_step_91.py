@@ -11,7 +11,7 @@ import argparse
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Set, Tuple
 
 
 REQUIRED_SEPARATING_CHECKS = [
@@ -40,6 +40,8 @@ class TransitionResult:
     target_required_checks_present: bool
     source_decision: bool
     target_decision: bool
+    source_exception_applied: bool
+    target_exception_applied: bool
 
 
 def _load_json(path: Path) -> Dict[str, Any] | None:
@@ -117,7 +119,23 @@ def _parse_transitions(raw: str) -> List[Tuple[int, int]]:
     return pairs
 
 
-def _evaluate_transition(root: Path, source_n: int, target_n: int, required_core_family: str | None) -> TransitionResult:
+def _parse_exceptional_indices(raw: str) -> Set[int]:
+    indices: Set[int] = set()
+    for item in raw.split(","):
+        token = item.strip()
+        if not token:
+            continue
+        indices.add(int(token))
+    return indices
+
+
+def _evaluate_transition(
+    root: Path,
+    source_n: int,
+    target_n: int,
+    required_core_family: str | None,
+    exceptional_indices: Set[int],
+) -> TransitionResult:
     source_path, source_payload = _select_best_payload(root, source_n)
     target_path, target_payload = _select_best_payload(root, target_n)
 
@@ -146,29 +164,34 @@ def _evaluate_transition(root: Path, source_n: int, target_n: int, required_core
             target_required_checks_present=False,
             source_decision=False,
             target_decision=False,
+            source_exception_applied=False,
+            target_exception_applied=False,
         )
+
+    source_exception = source_n in exceptional_indices
+    target_exception = target_n in exceptional_indices
 
     source_witness = bool(source_payload.get("witness_found", False))
     target_witness = bool(target_payload.get("witness_found", False))
 
-    if not source_witness:
+    if not source_witness and not source_exception:
         blockers.append(f"source n={source_n} has witness_found=false")
-    if not target_witness:
+    if not target_witness and not target_exception:
         blockers.append(f"target n={target_n} has witness_found=false")
 
     source_decision = bool(source_payload.get("non_similarity_proof_object", {}).get("decision", False))
     target_decision = bool(target_payload.get("non_similarity_proof_object", {}).get("decision", False))
-    if source_witness and not source_decision:
+    if source_witness and not source_decision and not source_exception:
         blockers.append(f"source n={source_n} decision=false")
-    if target_witness and not target_decision:
+    if target_witness and not target_decision and not target_exception:
         blockers.append(f"target n={target_n} decision=false")
 
     source_families = _family_set(source_payload)
     target_families = _family_set(target_payload)
     if required_core_family:
-        if source_witness and required_core_family not in source_families:
+        if source_witness and required_core_family not in source_families and not source_exception:
             blockers.append(f"source n={source_n} does not contain {required_core_family}")
-        if target_witness and required_core_family not in target_families:
+        if target_witness and required_core_family not in target_families and not target_exception:
             blockers.append(f"target n={target_n} does not contain {required_core_family}")
 
     source_checks = _separating_check_set(source_payload)
@@ -176,10 +199,10 @@ def _evaluate_transition(root: Path, source_n: int, target_n: int, required_core
     source_checks_ok = set(REQUIRED_SEPARATING_CHECKS).issubset(source_checks)
     target_checks_ok = set(REQUIRED_SEPARATING_CHECKS).issubset(target_checks)
 
-    if source_witness and not source_checks_ok:
+    if source_witness and not source_checks_ok and not source_exception:
         missing = sorted(set(REQUIRED_SEPARATING_CHECKS) - source_checks)
         blockers.append(f"source n={source_n} missing separating checks: {', '.join(missing)}")
-    if target_witness and not target_checks_ok:
+    if target_witness and not target_checks_ok and not target_exception:
         missing = sorted(set(REQUIRED_SEPARATING_CHECKS) - target_checks)
         blockers.append(f"target n={target_n} missing separating checks: {', '.join(missing)}")
 
@@ -202,6 +225,8 @@ def _evaluate_transition(root: Path, source_n: int, target_n: int, required_core
         target_required_checks_present=target_checks_ok,
         source_decision=source_decision,
         target_decision=target_decision,
+        source_exception_applied=source_exception,
+        target_exception_applied=target_exception,
     )
 
 
@@ -221,6 +246,7 @@ def _build_hypothesis_payload(
     pilot: TransitionResult | None,
     hypothesis_id: str,
     required_core_family: str | None,
+    exceptional_indices: Sequence[int],
 ) -> Dict[str, Any]:
     return {
         "hypothesis_id": hypothesis_id,
@@ -230,6 +256,8 @@ def _build_hypothesis_payload(
             "non_similarity_decision": True,
             "required_separating_checks": REQUIRED_SEPARATING_CHECKS,
             "required_core_family": required_core_family,
+            "exceptional_indices": list(exceptional_indices),
+            "exception_policy": "endpoint witness requirements waived for exceptional indices",
         },
         "tested_transitions": [asdict(item) for item in transitions],
         "pilot_transition": asdict(pilot) if pilot is not None else None,
@@ -241,7 +269,11 @@ def _build_hypothesis_payload(
     }
 
 
-def _build_markdown_report(transitions: Sequence[TransitionResult], pilot: TransitionResult | None) -> str:
+def _build_markdown_report(
+    transitions: Sequence[TransitionResult],
+    pilot: TransitionResult | None,
+    exceptional_indices: Sequence[int],
+) -> str:
     lines: List[str] = []
     lines.append("# Bridge Step Verification #91")
     lines.append("")
@@ -255,9 +287,28 @@ def _build_markdown_report(transitions: Sequence[TransitionResult], pilot: Trans
         )
     lines.append("")
 
+    lines.append("## Exception Policy")
+    lines.append("")
+    if exceptional_indices:
+        lines.append(
+            "- Endpoint witness requirements are waived when transition endpoints are in exceptional_indices: "
+            + ", ".join(str(n) for n in exceptional_indices)
+        )
+    else:
+        lines.append("- No exceptional indices configured.")
+    lines.append("")
+
     for item in transitions:
         if item.blockers:
             lines.append(f"- blockers for {item.source_n}->{item.target_n}: {'; '.join(item.blockers)}")
+        else:
+            notes: List[str] = []
+            if item.source_exception_applied:
+                notes.append(f"source n={item.source_n} exception-applied")
+            if item.target_exception_applied:
+                notes.append(f"target n={item.target_n} exception-applied")
+            if notes:
+                lines.append(f"- exception notes for {item.source_n}->{item.target_n}: {'; '.join(notes)}")
 
     lines.append("")
     lines.append("## Pilot Result")
@@ -287,6 +338,11 @@ def main() -> None:
         default="any",
         help="required seed family for both endpoints; default 'any' disables family gating",
     )
+    parser.add_argument(
+        "--exceptional-indices",
+        default="",
+        help="comma-separated n values treated as exceptional indices (endpoint witness requirements waived)",
+    )
     parser.add_argument("--out-json", default="results/bridge_step_hypothesis_91.json", help="output JSON hypothesis path")
     parser.add_argument("--out-md", default="results/bridge_step_verification_91.md", help="output markdown report path")
     parser.add_argument("--strict", action="store_true", help="exit non-zero unless at least one certified transition exists")
@@ -296,9 +352,11 @@ def main() -> None:
     required_core_family = args.required_core_family.strip()
     if required_core_family.lower() in {"", "any", "none"}:
         required_core_family = None
+    exceptional_indices = sorted(_parse_exceptional_indices(args.exceptional_indices))
+    exceptional_set = set(exceptional_indices)
 
     transitions = [
-        _evaluate_transition(root, source, target, required_core_family)
+        _evaluate_transition(root, source, target, required_core_family, exceptional_set)
         for source, target in _parse_transitions(args.transitions)
     ]
     pilot = _choose_pilot(transitions)
@@ -308,8 +366,9 @@ def main() -> None:
         pilot=pilot,
         hypothesis_id=args.hypothesis_id,
         required_core_family=required_core_family,
+        exceptional_indices=exceptional_indices,
     )
-    report = _build_markdown_report(transitions, pilot)
+    report = _build_markdown_report(transitions, pilot, exceptional_indices)
 
     out_json = Path(args.out_json)
     out_json.parent.mkdir(parents=True, exist_ok=True)

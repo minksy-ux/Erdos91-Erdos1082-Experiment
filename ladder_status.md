@@ -25,3 +25,12 @@
 - results/erdos91_witness_n14_formal_upgrade_v2.json: missing (expected sha256:1d436348a73324b78029fc7294fb466f10c65557ce912cf830016f8a0aa77a96)
 - results/erdos91_witness_n26_formal_upgrade.json: missing (expected sha256:0301b19fa3bf92928a271faff800026ee3eac498aa3e6299ff904bf8d6841abb)
 
+## Bridge Window Matrix
+
+| Window | Strict status | Exception-aware status | Delta |
+|---|---|---|---|
+| 26->30->34 | n+2-certified | n+2-certified | same |
+| 30->34->38 | n+2-certified | n+2-certified | same |
+| 34->38->42 | surrogate-certified | n+2-certified-with-exceptions | changed |
+| 38->42->46 | n+2-certified | n+2-certified-with-exceptions | changed |
+

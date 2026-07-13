@@ -25,6 +25,14 @@ def _find_transition(step_payload: Dict[str, Any], source_n: int, target_n: int)
     return None
 
 
+def _is_certified_transition(item: Dict[str, Any]) -> bool:
+    return item.get("status") == "certified"
+
+
+def _uses_exception_policy(item: Dict[str, Any]) -> bool:
+    return bool(item.get("source_exception_applied", False) or item.get("target_exception_applied", False))
+
+
 def _build_window_composition(
     step_payload: Dict[str, Any],
     asymptotic_payload: Dict[str, Any],
@@ -42,7 +50,7 @@ def _build_window_composition(
     for edge in [edge_a, edge_b, edge_c]:
         if edge is None:
             continue
-        if edge.get("status") == "certified":
+        if _is_certified_transition(edge):
             certified_edges.append(edge)
         else:
             blocked_edges.append(edge)
@@ -55,7 +63,17 @@ def _build_window_composition(
         "consensus_plateau_fixed": isinstance(consensus_values, list) and len(consensus_values) == 1,
     }
 
-    if certified_edges and anchor_support["bounded_exclusion_gap_positive"] and anchor_support["consensus_plateau_fixed"]:
+    n_plus_2_edges = [edge for edge in [edge_b, edge_c] if edge is not None]
+    n_plus_2_window_ok = len(n_plus_2_edges) == 2 and all(_is_certified_transition(edge) for edge in n_plus_2_edges)
+    n_plus_2_window_uses_exception = any(_uses_exception_policy(edge) for edge in n_plus_2_edges)
+
+    if (
+        n_plus_2_window_ok
+        and anchor_support["bounded_exclusion_gap_positive"]
+        and anchor_support["consensus_plateau_fixed"]
+    ):
+        status = "n+2-certified-with-exceptions" if n_plus_2_window_uses_exception else "n+2-certified"
+    elif certified_edges and anchor_support["bounded_exclusion_gap_positive"] and anchor_support["consensus_plateau_fixed"]:
         status = "surrogate-certified"
     elif certified_edges:
         status = "edge-certified-anchor-pending"
@@ -90,18 +108,31 @@ def _build_proof_object(
         if isinstance(item, dict)
     ]
 
-    n_plus_2_ok = any(
-        item.get("status") == "certified" and (int(item.get("target_n", -1)) - int(item.get("source_n", -1)) == 2)
+    n_plus_2_edges = [
+        item
         for item in verified_transitions
-    )
-    surrogate_ok = any(
-        item.get("status") == "certified" and (int(item.get("target_n", -1)) - int(item.get("source_n", -1)) > 2)
+        if _is_certified_transition(item)
+        and (int(item.get("target_n", -1)) - int(item.get("source_n", -1)) == 2)
+    ]
+    surrogate_edges = [
+        item
         for item in verified_transitions
-    )
+        if _is_certified_transition(item)
+        and (int(item.get("target_n", -1)) - int(item.get("source_n", -1)) > 2)
+    ]
+
+    n_plus_2_ok = bool(n_plus_2_edges)
+    surrogate_ok = bool(surrogate_edges)
+    n_plus_2_uses_exception = any(_uses_exception_policy(item) for item in n_plus_2_edges)
+    surrogate_uses_exception = any(_uses_exception_policy(item) for item in surrogate_edges)
 
     transfer_status = "surrogate-certified" if surrogate_ok else "blocked"
+    if surrogate_ok and surrogate_uses_exception:
+        transfer_status = "surrogate-certified-with-exceptions"
     if n_plus_2_ok:
         transfer_status = "n+2-certified"
+    if n_plus_2_ok and n_plus_2_uses_exception:
+        transfer_status = "n+2-certified-with-exceptions"
 
     blocked_vertices = sorted(
         {
@@ -144,6 +175,8 @@ def _build_proof_object(
             "transfer_lemma_status": transfer_status,
             "n_plus_2_status": "certified" if n_plus_2_ok else "blocked",
             "surrogate_step_status": "certified" if surrogate_ok else "blocked",
+            "exception_policy_active": n_plus_2_uses_exception or surrogate_uses_exception,
+            "n_plus_2_exception_usage": n_plus_2_uses_exception,
             "next_required_unlock": next_unlock,
         },
         "generated_from": generated_from,
@@ -162,6 +195,8 @@ def _build_markdown_report(payload: Dict[str, Any]) -> str:
     lines.append(f"- transfer_lemma_status: {conclusion.get('transfer_lemma_status', '-')}")
     lines.append(f"- n_plus_2_status: {conclusion.get('n_plus_2_status', '-')}")
     lines.append(f"- surrogate_step_status: {conclusion.get('surrogate_step_status', '-')}")
+    lines.append(f"- exception_policy_active: {conclusion.get('exception_policy_active', False)}")
+    lines.append(f"- n_plus_2_exception_usage: {conclusion.get('n_plus_2_exception_usage', False)}")
     lines.append(f"- next_required_unlock: {conclusion.get('next_required_unlock', '-')}")
     lines.append("")
 
