@@ -9,38 +9,6 @@
       "checks": []
     },
     {
-      "file": "results/bridge_step_hypothesis_91.json",
-      "applicable": false,
-      "pass": true,
-      "checks_total": 0,
-      "checks_passed": 0,
-      "checks": []
-    },
-    {
-      "file": "results/bridge_step_hypothesis_91_window_34_38_exception36.json",
-      "applicable": false,
-      "pass": true,
-      "checks_total": 0,
-      "checks_passed": 0,
-      "checks": []
-    },
-    {
-      "file": "results/bridge_transfer_proof_91.json",
-      "applicable": false,
-      "pass": true,
-      "checks_total": 0,
-      "checks_passed": 0,
-      "checks": []
-    },
-    {
-      "file": "results/bridge_transfer_proof_91_window_34_38_exception36.json",
-      "applicable": false,
-      "pass": true,
-      "checks_total": 0,
-      "checks_passed": 0,
-      "checks": []
-    },
-    {
       "file": "results/erdos91_witness_n22.json",
       "applicable": true,
       "pass": true,
@@ -259,14 +227,6 @@
           "details": "decision = equal_exact_objective AND any(independent fingerprint mismatch)"
         }
       ]
-    },
-    {
-      "file": "results/independent_verifier_transcript_91.json",
-      "applicable": false,
-      "pass": true,
-      "checks_total": 0,
-      "checks_passed": 0,
-      "checks": []
     }
   ]
 }
