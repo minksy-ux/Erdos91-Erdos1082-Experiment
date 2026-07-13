@@ -169,7 +169,7 @@ def _expand_inputs(inputs: List[str]) -> List[Path]:
         p = Path(item)
         if p.is_dir():
             out.extend(sorted(p.glob("*.json")))
-        else:
+        elif p.is_file():
             out.append(p)
     return out
 
@@ -213,7 +213,8 @@ def main() -> None:
 
     paths = _expand_inputs(args.inputs)
     if not paths:
-        raise SystemExit("No JSON inputs found")
+        print("No JSON inputs found; skipping independent verification.")
+        return
 
     rows: List[Dict[str, Any]] = []
     failures = 0

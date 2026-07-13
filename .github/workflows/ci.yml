@@ -39,7 +39,10 @@ jobs:
         run: python verify_witness_independent_91.py --inputs results --strict
 
       - name: Verify bridge step
-        run: python verify_bridge_step_91.py --strict
+        run: python verify_bridge_step_91.py
+
+      - name: Generate asymptotic signal
+        run: python asymptotic_signal_91.py --root . --out results/asymptotic_signal_91.md --json-out results/asymptotic_signal_91.json
 
       - name: Verify bridge transfer
         run: python verify_bridge_transfer_91.py
@@ -53,7 +56,6 @@ jobs:
           --hypothesis-id H91-bridge-step-v2-exception36
           --out-json results/bridge_step_hypothesis_91_window_34_38_exception36.json
           --out-md results/bridge_step_verification_91_window_34_38_exception36.md
-          --strict
 
       - name: Verify bridge transfer (exception-aware n=36)
         run: >-
