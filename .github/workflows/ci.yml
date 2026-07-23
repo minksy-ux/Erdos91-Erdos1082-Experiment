@@ -32,6 +32,9 @@ jobs:
       - name: Run unit tests
         run: pytest -q
 
+      - name: Ensure results directory exists
+        run: mkdir -p results
+
       - name: Verify witness proof objects
         run: python verify_witness_proof_object.py --inputs results --invariant-tol 1e-10 --strict
 
