@@ -54,3 +54,22 @@ def test_verify_metric_space_rejects_triangle_inequality_violation() -> None:
     }
 
     assert not verify_metric_space(seams)
+
+
+def test_verify_metric_space_rejects_incomplete_triangle_data() -> None:
+    seams = {
+        (0, 1): DistanceSeam(0, 1, 1.0),
+        (1, 2): DistanceSeam(1, 2, 1.0),
+    }
+
+    assert not verify_metric_space(seams)
+
+
+def test_verify_metric_space_rejects_non_finite_distances() -> None:
+    seams = {
+        (0, 1): DistanceSeam(0, 1, float("nan")),
+        (1, 2): DistanceSeam(1, 2, 1.0),
+        (0, 2): DistanceSeam(0, 2, 1.0),
+    }
+
+    assert not verify_metric_space(seams)

@@ -323,7 +323,12 @@ def check_no_three_collinear(points: np.ndarray, tolerance: float = 1e-6) -> boo
 
 def verify_metric_space(seams: Dict[Tuple[int, int], DistanceSeam], 
                        tolerance: float = 1e-6) -> bool:
-    """Verify triangle inequality and symmetry for all seams."""
+    """Verify that the provided seams form a complete, non-negative metric-like graph.
+
+    A metric-space check should only pass when every pair of nodes in the
+    represented point set has an explicit distance value, and every triangle
+    respects the triangle inequality.
+    """
     if not seams:
         return True
 
@@ -331,18 +336,28 @@ def verify_metric_space(seams: Dict[Tuple[int, int], DistanceSeam],
     nodes: Set[int] = set()
     for (i, j), seam in seams.items():
         key = (min(i, j), max(i, j))
-        if seam.distance < -tolerance:
+        distance = float(seam.distance)
+        if not np.isfinite(distance):
             return False
-        matrix[key] = seam.distance
+        if distance < -tolerance:
+            return False
+        matrix[key] = distance
         nodes.add(i)
         nodes.add(j)
 
-    for i, j, k in combinations(sorted(nodes), 3):
-        dij = matrix.get((min(i, j), max(i, j)))
-        dik = matrix.get((min(i, k), max(i, k)))
-        djk = matrix.get((min(j, k), max(j, k)))
-        if dij is None or dik is None or djk is None:
-            continue
+    if not nodes:
+        return True
+
+    nodes_sorted = sorted(nodes)
+    for i, j in combinations(nodes_sorted, 2):
+        key = (min(i, j), max(i, j))
+        if key not in matrix:
+            return False
+
+    for i, j, k in combinations(nodes_sorted, 3):
+        dij = matrix[(min(i, j), max(i, j))]
+        dik = matrix[(min(i, k), max(i, k))]
+        djk = matrix[(min(j, k), max(j, k))]
         if dij > dik + djk + tolerance:
             return False
         if dik > dij + djk + tolerance:

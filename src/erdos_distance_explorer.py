@@ -17,6 +17,17 @@ from scipy.spatial.distance import pdist
 Array2D = np.ndarray
 
 
+def _validate_points_array(points: Array2D, *, min_points: int = 2) -> Array2D:
+    array = np.asarray(points, dtype=float)
+    if array.ndim != 2:
+        raise ValueError("init_points must be a 2D array of shape (n, dim)")
+    if array.shape[0] < min_points:
+        raise ValueError(f"init_points must contain at least {min_points} points")
+    if array.shape[1] < 1:
+        raise ValueError("init_points must have at least one coordinate dimension")
+    return array
+
+
 @dataclass
 class Candidate:
     points: Array2D
@@ -27,6 +38,10 @@ class Candidate:
 
 
 def regular_polygon(n: int, radius: float = 1.0, dim: int = 2) -> Array2D:
+    if n <= 0:
+        raise ValueError("n must be > 0")
+    if radius <= 0.0:
+        raise ValueError("radius must be > 0")
     if dim != 2:
         raise ValueError("regular_polygon supports only dim=2")
     theta = np.linspace(0.0, 2.0 * np.pi, n, endpoint=False)
@@ -36,6 +51,8 @@ def regular_polygon(n: int, radius: float = 1.0, dim: int = 2) -> Array2D:
 def fibonacci_sphere(n: int, radius: float = 1.0, seed: Optional[int] = None) -> Array2D:
     if n <= 0:
         raise ValueError("fibonacci_sphere requires n >= 1")
+    if radius <= 0.0:
+        raise ValueError("radius must be > 0")
     if n == 1:
         return np.array([[0.0, radius, 0.0]], dtype=float)
     rng = np.random.default_rng(seed)
@@ -59,11 +76,25 @@ def perturbed_regular_polygon(n: int, radius: float = 1.0, scale: float = 0.08, 
 
 
 def random_uniform_points(n: int, radius: float = 1.0, dim: int = 2, seed: Optional[int] = None) -> Array2D:
+    if n <= 0:
+        raise ValueError("n must be > 0")
+    if radius <= 0.0:
+        raise ValueError("radius must be > 0")
+    if dim not in (2, 3):
+        raise ValueError("dim must be 2 or 3")
     rng = np.random.default_rng(seed)
     return radius * (2.0 * rng.random((n, dim)) - 1.0)
 
 
 def lattice_patch(n: int, spacing: float = 0.4, perturb: float = 0.02, dim: int = 2, seed: Optional[int] = None) -> Array2D:
+    if n <= 0:
+        raise ValueError("n must be > 0")
+    if spacing <= 0.0:
+        raise ValueError("spacing must be > 0")
+    if perturb < 0.0:
+        raise ValueError("perturb must be >= 0")
+    if dim not in (2, 3):
+        raise ValueError("dim must be 2 or 3")
     rng = np.random.default_rng(seed)
     m = int(math.ceil(n ** (1.0 / dim)))
     grid = []
@@ -382,6 +413,17 @@ def optimize_candidate(
     distance_tol: float = 1e-6,
     seed: Optional[int] = None,
 ) -> Tuple[Array2D, float]:
+    init_points = _validate_points_array(init_points)
+
+    if steps <= 0:
+        raise ValueError("steps must be > 0")
+    if scale <= 0.0:
+        raise ValueError("scale must be > 0")
+    if distance_tol <= 0.0:
+        raise ValueError("distance_tol must be > 0")
+    if temp_start <= 0.0 or temp_end <= 0.0:
+        raise ValueError("temperature parameters must be > 0")
+
     if method == "hillclimb":
         return hillclimb_optimize(init_points, steps=steps, scale=scale, seed=seed)
     if method == "anneal":
@@ -413,6 +455,11 @@ def optimize_candidate(
 
 
 def seed_points(n: int, seed_type: str, dim: int, seed: Optional[int] = None) -> Array2D:
+    if n <= 0:
+        raise ValueError("n must be > 0")
+    if dim not in (2, 3):
+        raise ValueError("dim must be 2 or 3")
+
     if seed_type == "regular":
         if dim == 2:
             return perturbed_regular_polygon(n, radius=1.0, scale=0.12, seed=seed)
@@ -496,6 +543,14 @@ def generate_candidates(
     opt_method: str = "anneal",
     distance_tol: float = 1e-6,
 ) -> List[Candidate]:
+    if n <= 0:
+        raise ValueError("n must be > 0")
+    if trials <= 0:
+        raise ValueError("trials must be > 0")
+    if steps <= 0:
+        raise ValueError("steps must be > 0")
+    if distance_tol <= 0.0:
+        raise ValueError("distance_tol must be > 0")
     rng = np.random.default_rng(seed)
     candidates: List[Candidate] = []
     for trial in range(trials):
@@ -677,7 +732,7 @@ def report_candidate(candidate: Candidate, n: int) -> None:
     print(f"  #1082 point bound: {candidate.max_distinct_from_point} >= {n // 2} -> {candidate.max_distinct_from_point >= n // 2}")
 
 
-def main() -> None:
+def main(argv: Optional[Sequence[str]] = None) -> None:
     parser = argparse.ArgumentParser(description="Erdős distance experiment explorer")
     parser.add_argument("--n", type=int, default=10, help="number of points")
     parser.add_argument("--trials", type=int, default=16, help="number of search trials")
@@ -691,7 +746,7 @@ def main() -> None:
     parser.add_argument("--distance-tol", type=float, default=1e-6, help="distance tolerance for counting distinct distances and direct optimization")
     parser.add_argument("--save-json", type=str, default="", help="optional path to save top candidate coordinates as JSON")
     parser.add_argument("--plot-top", type=int, default=0, help="number of top candidates to plot to PNG files")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.n < 1:
         parser.error("--n must be >= 1")
